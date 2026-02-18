@@ -30,7 +30,7 @@ const HELP_TEXT = `mdbasequery [options]
 Core options:
   --dir <path>                target directory (default .)
   --base <path>               load .base YAML file
-  --yaml <string-or-path>     inline YAML query or path to YAML file
+  --yaml <yaml-text>          inline YAML query text
   --view <name>               choose view by name (default first view)
   --format <fmt>              json|jsonl|yaml|csv|md (default json)
   --out <path>                write output to file

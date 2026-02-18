@@ -33,8 +33,7 @@ async function loadSpec(
     const yamlInput = options.yaml;
 
     if (await adapter.exists(yamlInput)) {
-      const content = await adapter.readTextFile(yamlInput);
-      return parseBaseYaml(content);
+      throw new Error("--yaml expects inline YAML text; use basePath/--base for file paths");
     }
 
     return parseBaseYaml(yamlInput);

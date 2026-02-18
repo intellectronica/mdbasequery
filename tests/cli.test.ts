@@ -45,6 +45,15 @@ describe("cli integration", () => {
     expect(result.stdout).toContain("Alpha");
   });
 
+  test("rejects file path passed to --yaml", () => {
+    const yamlPath = resolve(fixturesRoot, "queries/basic.base");
+    const result = runCli(["--yaml", yamlPath, "--dir", vaultDir, "--format", "json"]);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("--yaml expects inline YAML text");
+    expect(result.stderr).toContain("--base");
+  });
+
   test("--view selection and output destination", () => {
     const basePath = resolve(fixturesRoot, "queries/grouped.base");
     const tempDir = mkdtempSync(resolve(tmpdir(), "mdbasequery-"));

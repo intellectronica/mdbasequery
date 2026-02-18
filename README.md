@@ -43,7 +43,7 @@ There is one command surface; all behavior is controlled through options.
 `mdbasequery` supports three ways to provide the query definition:
 
 1. `.base` file via `--base <path>`
-2. YAML via `--yaml <string-or-path>`
+2. Inline YAML via `--yaml <yaml-text>`
 3. Flag-built query mode (`--filter`, `--select`, `--sort`, etc.)
 
 If `--base`/`--yaml` are not provided, the query is built from flags.
@@ -111,7 +111,7 @@ mdbasequery --yaml "views: [{ type: table, name: default }]" --no-strict
 | --- | --- | --- |
 | `--dir <path>` | string | Target directory to scan (default: current directory). |
 | `--base <path>` | string | Path to Obsidian-style `.base` YAML file. |
-| `--yaml <string-or-path>` | string | Inline YAML text or a path to a YAML file. |
+| `--yaml <yaml-text>` | string | Inline YAML text. |
 | `--view <name>` | string | View name to run (default: first view). |
 | `--format <json|jsonl|yaml|csv|md>` | string | Output format (default: `json`). |
 | `--out <path>` | string | Write serialized output to file instead of stdout. |
@@ -206,7 +206,7 @@ Runtime adapters:
 
 - `spec?: QuerySpec` - already parsed query spec.
 - `basePath?: string` - path to `.base` file.
-- `yaml?: string` - inline YAML or YAML path.
+- `yaml?: string` - inline YAML text.
 - `view?: string` - selected view name.
 - `dir?: string` - vault root directory.
 - `strict?: boolean` - strict symbol/function behavior (default true).

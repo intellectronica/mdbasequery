@@ -111,6 +111,7 @@ When asked to create commits in this repository:
 - CSV serialisation uses the selected/declared column list as the canonical header order.
 - View `order` is treated as projected column order; row sorting is driven by `sort`.
 - When no explicit columns are configured, projected columns are inferred from matched note frontmatter keys (with `file.name` first).
+- `--yaml`/`yaml` accepts inline YAML text only; file paths must use `--base`/`basePath`.
 
 ## Decision Log
 
@@ -133,3 +134,8 @@ When asked to create commits in this repository:
   - Context: Real `.base` files depend on `order` for visible columns and often use frontmatter keys containing spaces.
   - Decision: Treat `view.order` as column projection order, keep `view.sort` for row ordering, infer columns when unspecified, and resolve non-expression property names directly from note data.
   - Consequence: Query output now includes expected Base properties instead of falling back to `file.name`/`file.path` defaults.
+
+- 2026-02-18 - Inline-only YAML option semantics
+  - Context: `--yaml` overlapped with `--base` by auto-detecting file paths, which created ambiguous query source behavior.
+  - Decision: Restrict `--yaml`/`yaml` to inline YAML text and reject path-like input with guidance to use `--base`/`basePath`.
+  - Consequence: CLI and library query-source semantics are clearer and avoid accidental mode switching based on filesystem state.

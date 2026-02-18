@@ -23,6 +23,15 @@ views:
     expect(serialized).toContain("rows");
   });
 
+  test("queryBase rejects yaml file paths", async () => {
+    await expect(
+      queryBase({
+        dir: resolve(fixturesRoot, "vaults/basic"),
+        yaml: resolve(fixturesRoot, "queries/basic.base"),
+      }),
+    ).rejects.toThrow("--yaml expects inline YAML text");
+  });
+
   test("CLI help works", () => {
     const output = spawnSync("bun", ["run", "src/cli.ts", "--help"], {
       cwd: repoRoot,
