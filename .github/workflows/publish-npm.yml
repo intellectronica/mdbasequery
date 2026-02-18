@@ -41,12 +41,12 @@ jobs:
 
       - name: Publish prerelease to npm (next)
         if: github.event.release.prerelease == true
-        run: npm publish --tag next --provenance
+        run: npm publish --tag next --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish release to npm (latest)
         if: github.event.release.prerelease == false
-        run: npm publish --provenance
+        run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
