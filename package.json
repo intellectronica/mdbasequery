@@ -1,6 +1,6 @@
 {
   "name": "mdbasequery",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "description": "Query Markdown vaults with Obsidian Bases-compatible syntax",
   "type": "module",
   "license": "MIT",
