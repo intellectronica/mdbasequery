@@ -40,7 +40,7 @@ Minimum local validation before completion:
 1. Filter expressions and formulas use the same expression language.
 2. Effective view filter is `global filters AND view filters`.
 3. Formula dependencies are topologically ordered; cycles must fail with a clear error.
-4. Strict mode defaults to enabled for unknown identifiers/functions.
+4. Strict mode is enabled by default; users must opt out (`--no-strict`) for permissive behaviour.
 5. Summary formulas evaluate with `values` bound to the selected column values.
 6. Output ordering must remain deterministic across runs.
 
@@ -57,6 +57,7 @@ Policy:
 1. Core modules must remain runtime-agnostic.
 2. Runtime-specific behaviour belongs in adapters (`src/runtime-adapters`).
 3. Avoid introducing Node-only globals into shared core logic.
+4. Bun carries broad test coverage; Node and Deno run shared conformance smoke tests against built output. Cross-runtime confidence exists for core flows while detailed behaviour remains Bun-led.
 
 ## CI Expectations and Required Checks
 
@@ -70,22 +71,16 @@ Pull requests are expected to pass all required jobs:
 
 No merge with failing required checks.
 
+## Publishing
+
+npm publishing is automated via a `publish-npm` GitHub Actions workflow triggered on `release.published`, with manual `workflow_dispatch` support. The workflow uses `NPM_TOKEN`, validates tag/version alignment when a tag is supplied, and publishes with `--access public --provenance`. `package.json` must include a `repository.url` pointing to `https://github.com/intellectronica/mdbasequery` for npm provenance verification to succeed.
+
 ## Decision Log Protocol
 
 When implementation decisions affect compatibility, runtime behaviour, performance, or developer workflow:
 
-1. Add an entry under `## Decision Log` in this file.
-2. Include date, context, decision, and consequence.
-3. If the decision creates an Obsidian divergence, also add it under `## Compatibility Notes`.
-
-Entry template:
-
-```
-- YYYY-MM-DD - <topic>
-  - Context: <why this mattered>
-  - Decision: <what was chosen>
-  - Consequence: <impact/tradeoff>
-```
+1. Add an entry to this file under the relevant section.
+2. If the decision creates an Obsidian divergence, also add it under `## Compatibility Notes`.
 
 ## Continuous Update Protocol
 
@@ -112,40 +107,3 @@ When asked to create commits in this repository:
 - View `order` is treated as projected column order; row sorting is driven by `sort`.
 - When no explicit columns are configured, projected columns are inferred from matched note frontmatter keys (with `file.name` first).
 - `--yaml`/`yaml` accepts inline YAML text only; file paths must use `--base`/`basePath`.
-
-## Decision Log
-
-- 2026-02-18 - Runtime conformance strategy
-  - Context: Full Bun test runner semantics are not directly shared with Node and Deno.
-  - Decision: Keep broad coverage in Bun tests and run shared conformance smoke tests in Node/Deno against built output.
-  - Consequence: Cross-runtime confidence exists for core flows while detailed behaviour remains Bun-led.
-
-- 2026-02-18 - Strict mode default
-  - Context: Query portability requires predictable failures on unknown symbols.
-  - Decision: Enable strict mode by default in API and CLI.
-  - Consequence: Users must opt out (`--no-strict`) for permissive behaviour.
-
-- 2026-02-18 - `file.folder` compatibility support
-  - Context: Real-world Base filters often rely on `file.folder` to scope notes by directory.
-  - Decision: Add `file.folder` to indexed file metadata as the vault-relative parent path.
-  - Consequence: Queries depending on folder-based filtering now evaluate correctly without strict-mode property errors.
-
-- 2026-02-18 - View projection and property-name handling
-  - Context: Real `.base` files depend on `order` for visible columns and often use frontmatter keys containing spaces.
-  - Decision: Treat `view.order` as column projection order, keep `view.sort` for row ordering, infer columns when unspecified, and resolve non-expression property names directly from note data.
-  - Consequence: Query output now includes expected Base properties instead of falling back to `file.name`/`file.path` defaults.
-
-- 2026-02-18 - Inline-only YAML option semantics
-  - Context: `--yaml` overlapped with `--base` by auto-detecting file paths, which created ambiguous query source behavior.
-  - Decision: Restrict `--yaml`/`yaml` to inline YAML text and reject path-like input with guidance to use `--base`/`basePath`.
-  - Consequence: CLI and library query-source semantics are clearer and avoid accidental mode switching based on filesystem state.
-
-- 2026-02-18 - Release-driven npm publishing
-  - Context: Package publication should happen automatically when a GitHub release is published.
-  - Decision: Add a `publish-npm` GitHub Actions workflow triggered by `release.published` with manual `workflow_dispatch` support, using `NPM_TOKEN`, validating tag/version alignment when a tag is supplied, and publishing with `--access public --provenance`.
-  - Consequence: Publishing is automated for releases, can be manually retried without creating a new release, and remains guarded against version/tag mismatches.
-
-- 2026-02-18 - npm provenance repository metadata requirement
-  - Context: npm provenance validation for GitHub Actions publish failed when package metadata lacked repository linkage.
-  - Decision: Set `package.json.repository.url` to `https://github.com/intellectronica/mdbasequery`.
-  - Consequence: npm can verify sigstore provenance repository information during publish.
