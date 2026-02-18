@@ -4,6 +4,11 @@
   "description": "Query Markdown vaults with Obsidian Bases-compatible syntax",
   "type": "module",
   "license": "MIT",
+  "author": {
+    "name": "Eleanor Berger",
+    "email": "eleanor@intellectronica.net",
+    "url": "https://intellectronica.net/"
+  },
   "bin": {
     "mdbasequery": "./dist/cli.js"
   },
