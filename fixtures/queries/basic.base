@@ -10,7 +10,7 @@ summaries:
 views:
   - type: table
     name: default
-    order:
+    sort:
       - score:desc
     limit: 10
     summaries:

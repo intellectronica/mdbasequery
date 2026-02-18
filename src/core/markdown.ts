@@ -4,6 +4,7 @@ export interface MarkdownMetadata {
   frontmatter: Record<string, unknown>;
   tags: string[];
   links: string[];
+  embeds: string[];
 }
 
 function uniqueSorted(values: string[]): string[] {
@@ -53,6 +54,24 @@ export function extractTags(raw: string): string[] {
   return uniqueSorted(output);
 }
 
+function extractTagsFromFrontmatter(frontmatter: Record<string, unknown>): string[] {
+  const rawTags = frontmatter.tags;
+
+  if (typeof rawTags === "string") {
+    return [rawTags];
+  }
+
+  if (Array.isArray(rawTags)) {
+    return rawTags.filter((entry): entry is string => typeof entry === "string");
+  }
+
+  return [];
+}
+
+function normalizeTag(tag: string): string {
+  return tag.startsWith("#") ? tag.slice(1) : tag;
+}
+
 export function extractLinks(raw: string): string[] {
   const output: string[] = [];
 
@@ -73,10 +92,33 @@ export function extractLinks(raw: string): string[] {
   return uniqueSorted(output);
 }
 
+export function extractEmbeds(raw: string): string[] {
+  const output: string[] = [];
+
+  const wikiEmbedPattern = /!\[\[([^\]|#]+)(?:#[^\]]+)?(?:\|[^\]]+)?\]\]/g;
+  for (const match of raw.matchAll(wikiEmbedPattern)) {
+    if (match[1]) {
+      output.push(match[1].trim());
+    }
+  }
+
+  const markdownEmbedPattern = /!\[[^\]]*\]\(([^)]+)\)/g;
+  for (const match of raw.matchAll(markdownEmbedPattern)) {
+    if (match[1]) {
+      output.push(match[1].trim());
+    }
+  }
+
+  return uniqueSorted(output);
+}
+
 export function parseMarkdownMetadata(raw: string): MarkdownMetadata {
+  const frontmatter = extractFrontmatter(raw);
+
   return {
-    frontmatter: extractFrontmatter(raw),
-    tags: extractTags(raw),
+    frontmatter,
+    tags: uniqueSorted([...extractTags(raw), ...extractTagsFromFrontmatter(frontmatter)].map(normalizeTag)),
     links: extractLinks(raw),
+    embeds: extractEmbeds(raw),
   };
 }

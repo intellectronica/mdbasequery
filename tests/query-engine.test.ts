@@ -55,6 +55,61 @@ describe("query engine", () => {
     expect(result.groups?.length).toBe(2);
   });
 
+  test("uses view order as projection columns", async () => {
+    const spec = parseBaseYaml(`
+views:
+  - type: table
+    name: ordered-columns
+    order:
+      - title
+      - status
+`.trim());
+
+    const compiled = compileQuery(spec);
+    const indexed = await indexVault({
+      rootDir: vaultDir,
+      include: ["**/*.md"],
+      exclude: [],
+      adapter: nodeAdapter,
+    });
+
+    const result = executeCompiledQuery({
+      compiled,
+      documents: indexed.documents,
+      view: "ordered-columns",
+    });
+
+    expect(result.columns).toEqual(["title", "status"]);
+    expect(result.rows).toHaveLength(3);
+    expect(Object.keys(result.rows[0].projected)).toEqual(["title", "status"]);
+  });
+
+  test("infers note property columns when no order or select is declared", async () => {
+    const spec = parseBaseYaml(`
+views:
+  - type: table
+    name: inferred
+`.trim());
+
+    const compiled = compileQuery(spec);
+    const indexed = await indexVault({
+      rootDir: vaultDir,
+      include: ["**/*.md"],
+      exclude: [],
+      adapter: nodeAdapter,
+    });
+
+    const result = executeCompiledQuery({
+      compiled,
+      documents: indexed.documents,
+      view: "inferred",
+    });
+
+    expect(result.columns).toEqual(["file.name", "title", "score", "status", "created"]);
+    expect(result.rows).toHaveLength(3);
+    expect(result.rows[0].projected.title).toBeDefined();
+  });
+
   test("detects formula cycles", () => {
     expect(() =>
       compileQuery(
@@ -75,11 +130,11 @@ views:
 views:
   - type: table
     name: ordered
-    properties:
+    order:
       - title
       - score
       - status
-    order:
+    sort:
       - score:desc
       - title:asc
     groupBy: status

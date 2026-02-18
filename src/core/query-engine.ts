@@ -12,7 +12,24 @@ import type {
   ViewSpec,
 } from "../types.js";
 
-const BUILTIN_SUMMARIES = new Set(["count", "sum", "avg", "min", "max"]);
+const BUILTIN_SUMMARIES = new Set([
+  "count",
+  "sum",
+  "avg",
+  "min",
+  "max",
+  "average",
+  "median",
+  "stddev",
+  "earliest",
+  "latest",
+  "range",
+  "checked",
+  "unchecked",
+  "empty",
+  "filled",
+  "unique",
+]);
 
 export interface CompileQueryOptions {
   strict?: boolean;
@@ -31,6 +48,28 @@ export interface CompiledQuery {
 type CompiledFilter =
   | { kind: "expr"; expression: ExpressionNode }
   | { kind: "tree"; and?: CompiledFilter[]; or?: CompiledFilter[]; not?: CompiledFilter };
+
+function withEvalContext(row: QueryRow, filesByPath: Map<string, unknown>): Record<string, unknown> {
+  return {
+    ...row,
+    filesByPath,
+  };
+}
+
+const DOTTED_IDENTIFIER_RE = /^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$/;
+
+function evaluatePropertyRef(
+  property: string,
+  row: QueryRow,
+  strict: boolean,
+  filesByPath: Map<string, unknown>,
+): unknown {
+  if (!DOTTED_IDENTIFIER_RE.test(property) && Object.prototype.hasOwnProperty.call(row.note, property)) {
+    return row.note[property];
+  }
+
+  return evaluateExpression(property, withEvalContext(row, filesByPath), { strict });
+}
 
 function toComparable(value: unknown): string | number {
   if (value instanceof Date) {
@@ -123,25 +162,34 @@ function compileFilter(filter?: FilterSpec): CompiledFilter | undefined {
   };
 }
 
-function evaluateFilter(filter: CompiledFilter | undefined, context: QueryRow, strict: boolean): boolean {
+function evaluateFilter(
+  filter: CompiledFilter | undefined,
+  context: QueryRow,
+  strict: boolean,
+  filesByPath: Map<string, unknown>,
+): boolean {
   if (!filter) {
     return true;
   }
 
   if (filter.kind === "expr") {
-    const result = evaluateAst(filter.expression, context, { strict });
+    const result = evaluateAst(filter.expression, withEvalContext(context, filesByPath), { strict });
     return Boolean(result);
   }
 
-  if (filter.and && !filter.and.every((entry) => evaluateFilter(entry, context, strict))) {
+  if (filter.and && !filter.and.every((entry) => evaluateFilter(entry, context, strict, filesByPath))) {
     return false;
   }
 
-  if (filter.or && filter.or.length > 0 && !filter.or.some((entry) => evaluateFilter(entry, context, strict))) {
+  if (
+    filter.or &&
+    filter.or.length > 0 &&
+    !filter.or.some((entry) => evaluateFilter(entry, context, strict, filesByPath))
+  ) {
     return false;
   }
 
-  if (filter.not && evaluateFilter(filter.not, context, strict)) {
+  if (filter.not && evaluateFilter(filter.not, context, strict, filesByPath)) {
     return false;
   }
 
@@ -167,6 +215,7 @@ function evaluateFormulas(
   formulas: Map<string, ExpressionNode>,
   order: string[],
   strict: boolean,
+  filesByPath: Map<string, unknown>,
 ): void {
   for (const name of order) {
     const ast = formulas.get(name);
@@ -175,27 +224,37 @@ function evaluateFormulas(
       continue;
     }
 
-    row.formula[name] = evaluateAst(ast, row, { strict });
+    row.formula[name] = evaluateAst(ast, withEvalContext(row, filesByPath), { strict });
   }
 }
 
-function projectRow(row: QueryRow, columns: string[], strict: boolean): Record<string, unknown> {
+function projectRow(
+  row: QueryRow,
+  columns: string[],
+  strict: boolean,
+  filesByPath: Map<string, unknown>,
+): Record<string, unknown> {
   const output: Record<string, unknown> = {};
 
   for (const column of columns) {
-    output[column] = evaluateExpression(column, row, { strict });
+    output[column] = evaluatePropertyRef(column, row, strict, filesByPath);
   }
 
   return output;
 }
 
-function stableSort(rows: QueryRow[], view: ViewSpec, strict: boolean): QueryRow[] {
-  const order = view.order ?? [];
+function stableSort(
+  rows: QueryRow[],
+  view: ViewSpec,
+  strict: boolean,
+  filesByPath: Map<string, unknown>,
+): QueryRow[] {
+  const order = view.sort ?? [];
 
   const sorted = [...rows].sort((left, right) => {
     for (const spec of order) {
-      const leftValue = toComparable(evaluateExpression(spec.by, left, { strict }));
-      const rightValue = toComparable(evaluateExpression(spec.by, right, { strict }));
+      const leftValue = toComparable(evaluatePropertyRef(spec.by, left, strict, filesByPath));
+      const rightValue = toComparable(evaluatePropertyRef(spec.by, right, strict, filesByPath));
 
       if (leftValue < rightValue) {
         return spec.direction === "desc" ? 1 : -1;
@@ -212,15 +271,23 @@ function stableSort(rows: QueryRow[], view: ViewSpec, strict: boolean): QueryRow
   return sorted;
 }
 
-function groupRows(rows: QueryRow[], view: ViewSpec, strict: boolean): QueryGroup[] | undefined {
+function groupRows(
+  rows: QueryRow[],
+  view: ViewSpec,
+  strict: boolean,
+  filesByPath: Map<string, unknown>,
+): QueryGroup[] | undefined {
   if (!view.groupBy) {
     return undefined;
   }
 
+  const groupProperty = typeof view.groupBy === "string" ? view.groupBy : view.groupBy.property;
+  const groupDirection = typeof view.groupBy === "string" ? "asc" : view.groupBy.direction;
+
   const groups = new Map<string, QueryGroup>();
 
   for (const row of rows) {
-    const key = evaluateExpression(view.groupBy, row, { strict });
+    const key = evaluatePropertyRef(groupProperty, row, strict, filesByPath);
     const mapKey = JSON.stringify(key);
 
     if (!groups.has(mapKey)) {
@@ -230,7 +297,13 @@ function groupRows(rows: QueryRow[], view: ViewSpec, strict: boolean): QueryGrou
     groups.get(mapKey)?.rows.push(row);
   }
 
-  return [...groups.values()].sort((left, right) => String(left.key).localeCompare(String(right.key)));
+  const sorted = [...groups.values()].sort((left, right) => String(left.key).localeCompare(String(right.key)));
+
+  if (groupDirection === "desc") {
+    sorted.reverse();
+  }
+
+  return sorted;
 }
 
 function applyLimit(rows: QueryRow[], view: ViewSpec): QueryRow[] {
@@ -241,24 +314,165 @@ function applyLimit(rows: QueryRow[], view: ViewSpec): QueryRow[] {
   return rows.slice(0, view.limit);
 }
 
+function inferColumns(rows: QueryRow[], compiled: CompiledQuery): string[] {
+  const columns = ["file.name"];
+  const seen = new Set(columns);
+
+  const stableRows = [...rows].sort((left, right) => left.file.path.localeCompare(right.file.path));
+
+  for (const row of stableRows) {
+    for (const key of Object.keys(row.note)) {
+      if (seen.has(key)) {
+        continue;
+      }
+
+      seen.add(key);
+      columns.push(key);
+    }
+  }
+
+  for (const formulaName of Object.keys(compiled.spec.formulas ?? {}).sort((left, right) => left.localeCompare(right))) {
+    const key = `formula.${formulaName}`;
+
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    columns.push(key);
+  }
+
+  if (columns.length === 1) {
+    columns.push("file.path");
+  }
+
+  return columns;
+}
+
+function toSummaryName(name: string): string {
+  return name.trim().toLowerCase();
+}
+
+function isDateList(values: unknown[]): values is Date[] {
+  return values.length > 0 && values.every((entry) => entry instanceof Date);
+}
+
+function toNumberList(values: unknown[]): number[] {
+  return values
+    .map((entry) => {
+      if (entry instanceof Date) {
+        return entry.getTime();
+      }
+
+      const parsed = Number(entry);
+      return Number.isFinite(parsed) ? parsed : Number.NaN;
+    })
+    .filter((entry) => Number.isFinite(entry));
+}
+
 function evalBuiltinSummary(name: string, values: unknown[]): unknown {
-  switch (name) {
+  const normalized = toSummaryName(name);
+
+  switch (normalized) {
     case "count":
       return values.length;
     case "sum":
-      return values.reduce<number>((total, entry) => total + Number(entry ?? 0), 0);
-    case "avg": {
-      if (values.length === 0) {
+      return toNumberList(values).reduce((total, entry) => total + entry, 0);
+    case "avg":
+    case "average": {
+      const numbers = toNumberList(values);
+
+      if (numbers.length === 0) {
         return 0;
       }
 
-      const sum = values.reduce<number>((total, entry) => total + Number(entry ?? 0), 0);
-      return sum / values.length;
+      return numbers.reduce((total, entry) => total + entry, 0) / numbers.length;
     }
-    case "min":
-      return values.length === 0 ? null : Math.min(...values.map((entry) => Number(entry)));
-    case "max":
-      return values.length === 0 ? null : Math.max(...values.map((entry) => Number(entry)));
+    case "min": {
+      const numbers = toNumberList(values);
+
+      if (numbers.length === 0) {
+        return null;
+      }
+
+      return Math.min(...numbers);
+    }
+    case "max": {
+      const numbers = toNumberList(values);
+
+      if (numbers.length === 0) {
+        return null;
+      }
+
+      return Math.max(...numbers);
+    }
+    case "range": {
+      if (isDateList(values)) {
+        const times = values.map((entry) => entry.getTime());
+
+        if (times.length === 0) {
+          return null;
+        }
+
+        return Math.max(...times) - Math.min(...times);
+      }
+
+      const numbers = toNumberList(values);
+
+      if (numbers.length === 0) {
+        return null;
+      }
+
+      return Math.max(...numbers) - Math.min(...numbers);
+    }
+    case "median": {
+      const numbers = toNumberList(values).sort((left, right) => left - right);
+
+      if (numbers.length === 0) {
+        return null;
+      }
+
+      const middle = Math.floor(numbers.length / 2);
+
+      if (numbers.length % 2 === 0) {
+        return (numbers[middle - 1] + numbers[middle]) / 2;
+      }
+
+      return numbers[middle];
+    }
+    case "stddev": {
+      const numbers = toNumberList(values);
+
+      if (numbers.length === 0) {
+        return null;
+      }
+
+      const mean = numbers.reduce((sum, entry) => sum + entry, 0) / numbers.length;
+      const variance = numbers.reduce((sum, entry) => sum + (entry - mean) ** 2, 0) / numbers.length;
+      return Math.sqrt(variance);
+    }
+    case "earliest":
+      if (!isDateList(values) || values.length === 0) {
+        return null;
+      }
+
+      return new Date(Math.min(...values.map((entry) => entry.getTime())));
+    case "latest":
+      if (!isDateList(values) || values.length === 0) {
+        return null;
+      }
+
+      return new Date(Math.max(...values.map((entry) => entry.getTime())));
+    case "checked":
+      return values.filter((entry) => entry === true).length;
+    case "unchecked":
+      return values.filter((entry) => entry === false).length;
+    case "empty":
+      return values.filter((entry) => entry === null || entry === undefined || entry === "").length;
+    case "filled":
+      return values.filter((entry) => entry !== null && entry !== undefined && entry !== "").length;
+    case "unique":
+      return new Set(values.map((entry) => JSON.stringify(entry))).size;
     default:
       return null;
   }
@@ -281,7 +495,7 @@ function computeSummaries(
   for (const [column, summaryName] of Object.entries(summaryMap)) {
     const values = rows.map((row) => row.projected[column]);
 
-    if (BUILTIN_SUMMARIES.has(summaryName)) {
+    if (BUILTIN_SUMMARIES.has(toSummaryName(summaryName))) {
       output[column] = evalBuiltinSummary(summaryName, values);
       continue;
     }
@@ -352,6 +566,11 @@ export function executeCompiledQuery(options: ExecuteQueryOptions): QueryResult 
   const { compiled } = options;
   const view = getView(compiled.spec, options.view);
   const diagnostics: QueryDiagnostics = options.diagnostics ?? { errors: [], warnings: [] };
+  const filesByPath = new Map<string, unknown>();
+
+  for (const document of options.documents) {
+    filesByPath.set(document.file.path, document.file);
+  }
 
   const rows: QueryRow[] = [];
 
@@ -368,14 +587,14 @@ export function executeCompiledQuery(options: ExecuteQueryOptions): QueryResult 
     };
 
     try {
-      evaluateFormulas(row, compiled.formulas, compiled.formulaOrder, compiled.strict);
+      evaluateFormulas(row, compiled.formulas, compiled.formulaOrder, compiled.strict, filesByPath);
 
-      if (!evaluateFilter(compiled.globalFilter, row, compiled.strict)) {
+      if (!evaluateFilter(compiled.globalFilter, row, compiled.strict, filesByPath)) {
         continue;
       }
 
       const viewFilter = compiled.viewFilters.get(view.name);
-      if (!evaluateFilter(viewFilter, row, compiled.strict)) {
+      if (!evaluateFilter(viewFilter, row, compiled.strict, filesByPath)) {
         continue;
       }
 
@@ -386,19 +605,22 @@ export function executeCompiledQuery(options: ExecuteQueryOptions): QueryResult 
     }
   }
 
-  const sorted = stableSort(rows, view, compiled.strict);
+  const sorted = stableSort(rows, view, compiled.strict, filesByPath);
   const limited = applyLimit(sorted, view);
 
   const columns =
+    (view.order && view.order.length > 0
+      ? view.order
+      : undefined) ??
     view.properties ??
     compiled.spec.properties ??
-    ["file.name", "file.path", ...Object.keys(compiled.spec.formulas ?? {}).map((name) => `formula.${name}`)];
+    inferColumns(limited, compiled);
 
   for (const row of limited) {
-    row.projected = projectRow(row, columns, compiled.strict);
+    row.projected = projectRow(row, columns, compiled.strict, filesByPath);
   }
 
-  const groups = groupRows(limited, view, compiled.strict);
+  const groups = groupRows(limited, view, compiled.strict, filesByPath);
   const summaries = computeSummaries(limited, compiled.spec, view, compiled);
 
   return {

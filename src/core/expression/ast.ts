@@ -3,6 +3,8 @@ export type ExpressionNode =
   | IdentifierNode
   | UnaryNode
   | BinaryNode
+  | ArrayNode
+  | ObjectNode
   | MemberNode
   | IndexNode
   | CallNode;
@@ -29,6 +31,21 @@ export interface BinaryNode {
   operator: string;
   left: ExpressionNode;
   right: ExpressionNode;
+}
+
+export interface ArrayNode {
+  kind: "array";
+  elements: ExpressionNode[];
+}
+
+export interface ObjectEntryNode {
+  key: string;
+  value: ExpressionNode;
+}
+
+export interface ObjectNode {
+  kind: "object";
+  entries: ObjectEntryNode[];
 }
 
 export interface MemberNode {

@@ -7,6 +7,9 @@ export type {
   IdentifierNode,
   IndexNode,
   LiteralNode,
+  ArrayNode,
+  ObjectEntryNode,
+  ObjectNode,
   MemberNode,
   UnaryNode,
 } from "./ast.js";

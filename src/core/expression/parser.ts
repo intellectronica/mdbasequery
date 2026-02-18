@@ -34,7 +34,7 @@ const binaryPrecedence = new Map<string, number>([
   ["%", 6],
 ]);
 
-const punctuators = new Set(["(", ")", "[", "]", ".", ","]);
+const punctuators = new Set(["(", ")", "[", "]", "{", "}", ".", ",", ":"]);
 
 const operators = ["==", "!=", ">=", "<=", "&&", "||", "+", "-", "*", "/", "%", ">", "<", "!"];
 
@@ -197,6 +197,68 @@ class Parser {
   }
 
   private parsePrimary(): ExpressionNode {
+    if (this.current.type === "punct" && this.current.value === "[") {
+      this.consume();
+      const elements: ExpressionNode[] = [];
+
+      if (!this.isCurrentPunct("]")) {
+        while (true) {
+          elements.push(this.parseExpression(0));
+
+          if (this.isCurrentPunct(",")) {
+            this.consume();
+            continue;
+          }
+
+          break;
+        }
+      }
+
+      this.expectPunct("]");
+
+      return {
+        kind: "array",
+        elements,
+      };
+    }
+
+    if (this.current.type === "punct" && this.current.value === "{") {
+      this.consume();
+      const entries: Array<{ key: string; value: ExpressionNode }> = [];
+
+      if (!this.isCurrentPunct("}")) {
+        while (true) {
+          const keyToken = this.current;
+          let key: string;
+
+          if (keyToken.type === "identifier" || keyToken.type === "string" || keyToken.type === "number") {
+            key = keyToken.value;
+            this.consume();
+          } else {
+            throw new ExpressionSyntaxError("expected object key", keyToken.start);
+          }
+
+          this.expectPunct(":");
+          const value = this.parseExpression(0);
+          entries.push({ key, value });
+
+          if (this.isCurrentPunct(",")) {
+            this.consume();
+            continue;
+          }
+
+          break;
+        }
+      }
+
+      this.expectPunct("}");
+
+      return {
+        kind: "object",
+        entries,
+      };
+    }
+
     if (this.current.type === "number") {
       const token = this.consume();
       return {

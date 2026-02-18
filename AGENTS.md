@@ -109,6 +109,8 @@ When asked to create commits in this repository:
 - `file.folder` is supported and resolves to the vault-relative parent directory (`""` for root-level notes).
 - `file.backlinks` is not implemented in v0 (reserved for future opt-in indexing pass).
 - CSV serialisation uses the selected/declared column list as the canonical header order.
+- View `order` is treated as projected column order; row sorting is driven by `sort`.
+- When no explicit columns are configured, projected columns are inferred from matched note frontmatter keys (with `file.name` first).
 
 ## Decision Log
 
@@ -126,3 +128,8 @@ When asked to create commits in this repository:
   - Context: Real-world Base filters often rely on `file.folder` to scope notes by directory.
   - Decision: Add `file.folder` to indexed file metadata as the vault-relative parent path.
   - Consequence: Queries depending on folder-based filtering now evaluate correctly without strict-mode property errors.
+
+- 2026-02-18 - View projection and property-name handling
+  - Context: Real `.base` files depend on `order` for visible columns and often use frontmatter keys containing spaces.
+  - Decision: Treat `view.order` as column projection order, keep `view.sort` for row ordering, infer columns when unspecified, and resolve non-expression property names directly from note data.
+  - Consequence: Query output now includes expected Base properties instead of falling back to `file.name`/`file.path` defaults.

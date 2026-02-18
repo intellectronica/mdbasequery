@@ -14,5 +14,5 @@ views:
             - status == "open"
             - status == "done"
     groupBy: status
-    order:
+    sort:
       - title:asc

@@ -2,6 +2,7 @@ import { parse as parseYaml } from "yaml";
 
 import type {
   FilterSpec,
+  GroupBySpec,
   QuerySpec,
   SortDirection,
   SortSpec,
@@ -66,7 +67,11 @@ function normalizeFilter(value: unknown, path: string, issues: string[]): Filter
   }
 
   if ("not" in value) {
-    result.not = normalizeFilter(value.not, `${path}.not`, issues);
+    if (Array.isArray(value.not)) {
+      result.not = normalizeFilter({ and: value.not }, `${path}.not`, issues);
+    } else {
+      result.not = normalizeFilter(value.not, `${path}.not`, issues);
+    }
   }
 
   return result;
@@ -80,6 +85,10 @@ function parseSortSpec(value: string): SortSpec {
     by: property.trim(),
     direction: direction === "desc" ? "desc" : "asc",
   };
+}
+
+function normalizeDirection(value: unknown): SortDirection {
+  return String(value ?? "asc").toLowerCase() === "desc" ? "desc" : "asc";
 }
 
 function normalizeSortList(
@@ -107,11 +116,20 @@ function normalizeSortList(
     }
 
     if (isPlainObject(entry) && typeof entry.by === "string") {
-      const direction = String(entry.direction ?? "asc").toLowerCase();
+      const direction = normalizeDirection(entry.direction);
 
       output.push({
         by: entry.by,
-        direction: direction === "desc" ? "desc" : "asc",
+        direction,
+      });
+
+      continue;
+    }
+
+    if (isPlainObject(entry) && typeof entry.property === "string") {
+      output.push({
+        by: entry.property,
+        direction: normalizeDirection(entry.direction),
       });
 
       continue;
@@ -121,6 +139,56 @@ function normalizeSortList(
   }
 
   return output;
+}
+
+function normalizeOrderList(value: unknown, path: string, issues: string[]): string[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (!Array.isArray(value)) {
+    issues.push(`${path} must be an array`);
+    return undefined;
+  }
+
+  const output: string[] = [];
+
+  for (let index = 0; index < value.length; index += 1) {
+    const entry = value[index];
+
+    if (typeof entry !== "string") {
+      issues.push(`${path}[${index}] must be a string property name`);
+      continue;
+    }
+
+    output.push(entry);
+  }
+
+  return output;
+}
+
+function normalizeGroupBy(
+  value: unknown,
+  path: string,
+  issues: string[],
+): string | GroupBySpec | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (isPlainObject(value) && typeof value.property === "string") {
+    return {
+      property: value.property,
+      direction: normalizeDirection(value.direction),
+    };
+  }
+
+  issues.push(`${path} must be a string or { property, direction } object`);
+  return undefined;
 }
 
 function normalizeView(value: unknown, index: number, issues: string[]): ViewSpec | undefined {
@@ -152,11 +220,6 @@ function normalizeView(value: unknown, index: number, issues: string[]): ViewSpe
     }
   }
 
-  const groupBy = value.groupBy;
-  if (groupBy !== undefined && typeof groupBy !== "string") {
-    issues.push(`${path}.groupBy must be a string`);
-  }
-
   const summaries = value.summaries;
   if (summaries !== undefined && !isPlainObject(summaries)) {
     issues.push(`${path}.summaries must be an object`);
@@ -167,15 +230,18 @@ function normalizeView(value: unknown, index: number, issues: string[]): ViewSpe
     issues.push(`${path}.properties must be an array of strings`);
   }
 
-  const order = normalizeSortList(value.order, `${path}.order`, issues);
+  const sort = normalizeSortList(value.sort, `${path}.sort`, issues);
+  const order = normalizeOrderList(value.order, `${path}.order`, issues);
   const filters = normalizeFilter(value.filters, `${path}.filters`, issues);
+  const groupBy = normalizeGroupBy(value.groupBy, `${path}.groupBy`, issues);
 
   return {
     type: String(value.type ?? "table"),
     name: String(value.name ?? `view-${index}`),
     filters,
+    sort,
     order,
-    groupBy: typeof groupBy === "string" ? groupBy : undefined,
+    groupBy,
     limit,
     summaries: isPlainObject(summaries)
       ? Object.fromEntries(
@@ -209,8 +275,8 @@ export function validateAndNormalizeQuery(value: unknown): QuerySpec {
   }
 
   const propertiesRaw = value.properties;
-  if (propertiesRaw !== undefined && !Array.isArray(propertiesRaw)) {
-    issues.push("properties must be an array of strings");
+  if (propertiesRaw !== undefined && !Array.isArray(propertiesRaw) && !isPlainObject(propertiesRaw)) {
+    issues.push("properties must be an array of strings or an object");
   }
 
   const summariesRaw = value.summaries;
@@ -235,7 +301,9 @@ export function validateAndNormalizeQuery(value: unknown): QuerySpec {
       : undefined,
     properties: Array.isArray(propertiesRaw)
       ? propertiesRaw.filter((entry): entry is string => typeof entry === "string")
-      : undefined,
+      : isPlainObject(propertiesRaw)
+        ? Object.keys(propertiesRaw)
+        : undefined,
     summaries: isPlainObject(summariesRaw)
       ? Object.fromEntries(
           Object.entries(summariesRaw)

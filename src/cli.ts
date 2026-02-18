@@ -78,7 +78,7 @@ function buildSpecFromFlags(options: CliOptions): QuerySpec {
         type: "table",
         name: viewName,
         filters: combineFilters(options.filters),
-        order: options.sort.map(parseSort),
+        sort: options.sort.map(parseSort),
         groupBy: options.groupBy,
         limit: options.limit,
         properties: options.select.length > 0 ? options.select : undefined,

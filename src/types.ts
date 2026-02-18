@@ -15,12 +15,18 @@ export interface SortSpec {
   direction: SortDirection;
 }
 
+export interface GroupBySpec {
+  property: string;
+  direction: SortDirection;
+}
+
 export interface ViewSpec {
   type: string;
   name: string;
   filters?: FilterSpec;
-  order?: SortSpec[];
-  groupBy?: string;
+  sort?: SortSpec[];
+  order?: string[];
+  groupBy?: string | GroupBySpec;
   limit?: number;
   summaries?: Record<string, string>;
   properties?: string[];
@@ -70,14 +76,18 @@ export interface QueryRow {
 
 export interface FileRecord {
   name: string;
+  basename: string;
   path: string;
   folder: string;
   ext: string;
   size: number;
   ctime: Date;
   mtime: Date;
+  properties: Record<string, unknown>;
   tags: string[];
   links: string[];
+  embeds: string[];
+  backlinks: string[];
   raw: string;
 }
 
