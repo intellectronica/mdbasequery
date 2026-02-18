@@ -1,0 +1,17 @@
+filters: status == "open"
+formulas:
+  doubled: score * 2
+properties:
+  - file.name
+  - title
+  - formula.doubled
+summaries:
+  totalDoubled: sum(values)
+views:
+  - type: table
+    name: default
+    order:
+      - score:desc
+    limit: 10
+    summaries:
+      formula.doubled: totalDoubled

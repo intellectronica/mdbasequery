@@ -1,0 +1,38 @@
+{
+  "name": "mdbasequery",
+  "version": "0.1.0",
+  "description": "Query Markdown vaults with Obsidian Bases-compatible syntax",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "mdbase": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint-typecheck": "tsc --noEmit",
+    "test": "bun test tests",
+    "test:bun": "bun test tests",
+    "test:node": "bun run build && node --test test-runtime/node-conformance.test.mjs",
+    "test:deno": "bun run build && deno test -A test-runtime/deno-conformance.test.ts",
+    "ci": "bun run lint-typecheck && bun run test:bun && bun run test:node && bun run test:deno",
+    "cli": "bun run src/cli.ts"
+  },
+  "dependencies": {
+    "minimatch": "^10.1.1",
+    "yaml": "^2.8.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "typescript": "^5.9.3"
+  }
+}

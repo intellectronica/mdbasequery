@@ -1,0 +1,121 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - "**"
+  pull_request:
+
+jobs:
+  lint-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Typecheck
+        run: bun run lint-typecheck
+
+  test-bun:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Run Bun tests
+        run: bun run test:bun
+
+  test-node:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Run Node conformance suite
+        run: bun run test:node
+
+  test-deno:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Run Deno conformance suite
+        run: bun run test:deno
+
+  compat-smoke-cli:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        runtime: [bun, node, deno]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build
+        run: bun run build
+
+      - name: Run CLI smoke command
+        run: |
+          if [ "${{ matrix.runtime }}" = "bun" ]; then
+            bun run src/cli.ts query --yaml "views:\n  - type: table\n    name: default" --dir fixtures/vaults/basic --format json >/tmp/mdbase-output.json
+          elif [ "${{ matrix.runtime }}" = "node" ]; then
+            node dist/cli.js query --yaml "views:\n  - type: table\n    name: default" --dir fixtures/vaults/basic --format json >/tmp/mdbase-output.json
+          else
+            deno run -A dist/cli.js query --yaml "views:\n  - type: table\n    name: default" --dir fixtures/vaults/basic --format json >/tmp/mdbase-output.json
+          fi
+
+      - name: Validate output
+        run: grep -q '"rows"' /tmp/mdbase-output.json

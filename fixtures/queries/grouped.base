@@ -1,0 +1,18 @@
+formulas:
+  band: score >= 7 and "high" or "low"
+views:
+  - type: table
+    name: grouped
+    properties:
+      - title
+      - status
+      - formula.band
+    filters:
+      and:
+        - score >= 3
+        - or:
+            - status == "open"
+            - status == "done"
+    groupBy: status
+    order:
+      - title:asc
