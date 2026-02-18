@@ -71,6 +71,7 @@ export interface QueryRow {
 export interface FileRecord {
   name: string;
   path: string;
+  folder: string;
   ext: string;
   size: number;
   ctime: Date;

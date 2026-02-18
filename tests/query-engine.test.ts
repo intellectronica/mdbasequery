@@ -105,4 +105,35 @@ views:
     expect(result.rows[1].projected.title).toBe("Alpha");
     expect(result.groups?.length).toBe(1);
   });
+
+  test("supports file.folder in filters and projections", async () => {
+    const spec = parseBaseYaml(`
+filters: file.folder == "nested"
+views:
+  - type: table
+    name: folders
+    properties:
+      - file.name
+      - file.folder
+`.trim());
+
+    const compiled = compileQuery(spec);
+    const indexed = await indexVault({
+      rootDir: vaultDir,
+      include: ["**/*.md"],
+      exclude: [],
+      adapter: nodeAdapter,
+    });
+
+    const result = executeCompiledQuery({
+      compiled,
+      documents: indexed.documents,
+      view: "folders",
+    });
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].projected["file.name"]).toBe("gamma.md");
+    expect(result.rows[0].projected["file.folder"]).toBe("nested");
+    expect(result.diagnostics.errors).toHaveLength(0);
+  });
 });

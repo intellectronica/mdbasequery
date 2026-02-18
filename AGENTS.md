@@ -106,6 +106,7 @@ When asked to create commits in this repository:
 ## Compatibility Notes
 
 - `this` context is deterministic CLI/library metadata (`filePath`, `name`) rather than Obsidian embed-location semantics.
+- `file.folder` is supported and resolves to the vault-relative parent directory (`""` for root-level notes).
 - `file.backlinks` is not implemented in v0 (reserved for future opt-in indexing pass).
 - CSV serialisation uses the selected/declared column list as the canonical header order.
 
@@ -120,3 +121,8 @@ When asked to create commits in this repository:
   - Context: Query portability requires predictable failures on unknown symbols.
   - Decision: Enable strict mode by default in API and CLI.
   - Consequence: Users must opt out (`--no-strict`) for permissive behaviour.
+
+- 2026-02-18 - `file.folder` compatibility support
+  - Context: Real-world Base filters often rely on `file.folder` to scope notes by directory.
+  - Decision: Add `file.folder` to indexed file metadata as the vault-relative parent path.
+  - Consequence: Queries depending on folder-based filtering now evaluate correctly without strict-mode property errors.

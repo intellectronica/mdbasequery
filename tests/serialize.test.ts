@@ -10,6 +10,7 @@ const fixtureResult: QueryResult = {
       file: {
         name: "alpha.md",
         path: "alpha.md",
+        folder: "",
         ext: ".md",
         size: 10,
         ctime: new Date("2024-01-01"),

@@ -40,6 +40,16 @@ function isMarkdown(path: string): boolean {
   return path.toLowerCase().endsWith(".md");
 }
 
+function folderFromPath(path: string): string {
+  const slashIndex = path.lastIndexOf("/");
+
+  if (slashIndex === -1) {
+    return "";
+  }
+
+  return path.slice(0, slashIndex);
+}
+
 function sortEntries(entries: RuntimeFileEntry[]): RuntimeFileEntry[] {
   return [...entries].sort((left, right) => left.path.localeCompare(right.path));
 }
@@ -73,6 +83,7 @@ export async function indexVault(options: VaultIndexOptions): Promise<VaultIndex
       file: {
         name: options.adapter.basename(relativePath),
         path: relativePath,
+        folder: folderFromPath(relativePath),
         ext: options.adapter.extname(relativePath),
         size: entry.stat.size,
         ctime: entry.stat.ctime,
