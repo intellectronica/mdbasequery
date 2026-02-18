@@ -1,4 +1,4 @@
-# MDBase Query - Agent Operating Guide
+# MDBaseQuery - Agent Operating Guide
 
 ## Project Mission and Compatibility Scope
 

@@ -25,7 +25,7 @@ interface CliOptions {
   help: boolean;
 }
 
-const HELP_TEXT = `mdbase query [options]
+const HELP_TEXT = `mdbasequery query [options]
 
 Core options:
   --dir <path>                target directory (default .)
