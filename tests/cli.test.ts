@@ -8,7 +8,7 @@ import { describe, expect, test } from "bun:test";
 import { fixturesRoot, repoRoot } from "./helpers.js";
 
 function runCli(args: string[]) {
-  return spawnSync("bun", ["run", "src/cli.ts", "query", ...args], {
+  return spawnSync("bun", ["run", "src/cli.ts", ...args], {
     cwd: repoRoot,
     encoding: "utf8",
   });

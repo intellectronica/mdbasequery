@@ -25,7 +25,7 @@ interface CliOptions {
   help: boolean;
 }
 
-const HELP_TEXT = `mdbasequery query [options]
+const HELP_TEXT = `mdbasequery [options]
 
 Core options:
   --dir <path>                target directory (default .)
@@ -39,7 +39,7 @@ Core options:
   --exclude <glob>            exclude pattern (repeatable)
   --debug                     include diagnostics
 
-CLI-query mode options:
+Query options:
   --filter <expr>             repeatable filter expression
   --select <property>         repeatable selected column
   --sort <prop:asc|desc>      repeatable sort

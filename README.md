@@ -16,13 +16,13 @@
 Run a `.base` file:
 
 ```bash
-mdbasequery query --base ./fixtures/queries/basic.base --dir ./fixtures/vaults/basic --format json
+mdbasequery --base ./fixtures/queries/basic.base --dir ./fixtures/vaults/basic --format json
 ```
 
 Build a query from flags:
 
 ```bash
-mdbasequery query --dir ./fixtures/vaults/basic --filter "score >= 7" --select title --sort score:desc --format csv
+mdbasequery --dir ./fixtures/vaults/basic --filter "score >= 7" --select title --sort score:desc --format csv
 ```
 
 ## Library usage

@@ -30,6 +30,6 @@ views:
     });
 
     expect(output.status).toBe(0);
-    expect(output.stdout).toContain("mdbasequery query");
+    expect(output.stdout).toContain("mdbasequery [options]");
   });
 });

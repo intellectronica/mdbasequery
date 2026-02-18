@@ -13,7 +13,6 @@ describe("documentation smoke", () => {
       [
         "run",
         "src/cli.ts",
-        "query",
         "--base",
         resolve(fixturesRoot, "queries/basic.base"),
         "--dir",
