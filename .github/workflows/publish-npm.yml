@@ -4,6 +4,12 @@ on:
   release:
     types:
       - published
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Optional tag to validate against package version (e.g. v0.0.1)
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -25,12 +31,32 @@ jobs:
       - name: Validate release tag matches package version
         run: |
           PACKAGE_VERSION=$(node -p "require('./package.json').version")
-          TAG_NAME="${{ github.event.release.tag_name }}"
+
+          if [ "${{ github.event_name }}" = "release" ]; then
+            TAG_NAME="${{ github.event.release.tag_name }}"
+          else
+            TAG_NAME="${{ github.event.inputs.tag }}"
+          fi
+
+          if [ -z "$TAG_NAME" ]; then
+            echo "No release tag provided; skipping tag/version validation for manual run."
+            exit 0
+          fi
+
           TAG_VERSION="${TAG_NAME#v}"
 
           if [ "$TAG_VERSION" != "$PACKAGE_VERSION" ]; then
             echo "Release tag ($TAG_NAME) does not match package version ($PACKAGE_VERSION)."
             exit 1
+          fi
+
+      - name: Decide npm dist-tag
+        id: npm_tag
+        run: |
+          if [ "${{ github.event_name }}" = "release" ] && [ "${{ github.event.release.prerelease }}" = "true" ]; then
+            echo "value=next" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=latest" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Install dependencies
@@ -39,14 +65,7 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Publish prerelease to npm (next)
-        if: github.event.release.prerelease == true
-        run: npm publish --tag next --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish release to npm (latest)
-        if: github.event.release.prerelease == false
-        run: npm publish --provenance --access public
+      - name: Publish package to npm
+        run: npm publish --tag "${{ steps.npm_tag.outputs.value }}" --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

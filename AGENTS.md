@@ -142,5 +142,5 @@ When asked to create commits in this repository:
 
 - 2026-02-18 - Release-driven npm publishing
   - Context: Package publication should happen automatically when a GitHub release is published.
-  - Decision: Add a `publish-npm` GitHub Actions workflow triggered by `release.published`, using `NPM_TOKEN`, validating release tag/version alignment, and publishing with `--access public --provenance`.
-  - Consequence: Publishing is automated, guarded against version/tag mismatches, and works for first-time public package publication with provenance.
+  - Decision: Add a `publish-npm` GitHub Actions workflow triggered by `release.published` with manual `workflow_dispatch` support, using `NPM_TOKEN`, validating tag/version alignment when a tag is supplied, and publishing with `--access public --provenance`.
+  - Consequence: Publishing is automated for releases, can be manually retried without creating a new release, and remains guarded against version/tag mismatches.
