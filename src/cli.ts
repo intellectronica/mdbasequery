@@ -103,10 +103,6 @@ function parseCli(argv: string[]): CliOptions {
 
   const args = [...argv];
 
-  if (args[0] === "query") {
-    args.shift();
-  }
-
   for (let index = 0; index < args.length; index += 1) {
     const token = args[index];
 

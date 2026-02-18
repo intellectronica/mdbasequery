@@ -30,16 +30,10 @@ mdbasequery --help
 
 ### Command Model
 
-Primary form:
+Command form:
 
 ```bash
 mdbasequery [options]
-```
-
-Compatibility alias (also supported):
-
-```bash
-mdbasequery query [options]
 ```
 
 There is one command surface; all behavior is controlled through options.

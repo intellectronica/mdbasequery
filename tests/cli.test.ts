@@ -75,4 +75,11 @@ describe("cli integration", () => {
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("view not found");
   });
+
+  test("rejects deprecated query subcommand", () => {
+    const result = runCli(["query", "--help"]);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("unknown option: query");
+  });
 });

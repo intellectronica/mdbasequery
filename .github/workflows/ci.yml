@@ -117,11 +117,11 @@ jobs:
           )
 
           if [ "${{ matrix.runtime }}" = "bun" ]; then
-            bun run src/cli.ts query --yaml "$QUERY_YAML" --dir fixtures/vaults/basic --format json >/tmp/mdbase-output.json
+            bun run src/cli.ts --yaml "$QUERY_YAML" --dir fixtures/vaults/basic --format json >/tmp/mdbase-output.json
           elif [ "${{ matrix.runtime }}" = "node" ]; then
-            node dist/cli.js query --yaml "$QUERY_YAML" --dir fixtures/vaults/basic --format json >/tmp/mdbase-output.json
+            node dist/cli.js --yaml "$QUERY_YAML" --dir fixtures/vaults/basic --format json >/tmp/mdbase-output.json
           else
-            deno run -A dist/cli.js query --yaml "$QUERY_YAML" --dir fixtures/vaults/basic --format json >/tmp/mdbase-output.json
+            deno run -A dist/cli.js --yaml "$QUERY_YAML" --dir fixtures/vaults/basic --format json >/tmp/mdbase-output.json
           fi
 
       - name: Validate output
