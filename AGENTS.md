@@ -144,3 +144,8 @@ When asked to create commits in this repository:
   - Context: Package publication should happen automatically when a GitHub release is published.
   - Decision: Add a `publish-npm` GitHub Actions workflow triggered by `release.published` with manual `workflow_dispatch` support, using `NPM_TOKEN`, validating tag/version alignment when a tag is supplied, and publishing with `--access public --provenance`.
   - Consequence: Publishing is automated for releases, can be manually retried without creating a new release, and remains guarded against version/tag mismatches.
+
+- 2026-02-18 - npm provenance repository metadata requirement
+  - Context: npm provenance validation for GitHub Actions publish failed when package metadata lacked repository linkage.
+  - Decision: Set `package.json.repository.url` to `https://github.com/intellectronica/mdbasequery`.
+  - Consequence: npm can verify sigstore provenance repository information during publish.

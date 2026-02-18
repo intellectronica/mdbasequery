@@ -9,6 +9,10 @@
     "email": "eleanor@intellectronica.net",
     "url": "https://intellectronica.net/"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/intellectronica/mdbasequery"
+  },
   "bin": {
     "mdbasequery": "./dist/cli.js"
   },
