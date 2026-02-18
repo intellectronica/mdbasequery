@@ -139,3 +139,8 @@ When asked to create commits in this repository:
   - Context: `--yaml` overlapped with `--base` by auto-detecting file paths, which created ambiguous query source behavior.
   - Decision: Restrict `--yaml`/`yaml` to inline YAML text and reject path-like input with guidance to use `--base`/`basePath`.
   - Consequence: CLI and library query-source semantics are clearer and avoid accidental mode switching based on filesystem state.
+
+- 2026-02-18 - Release-driven npm publishing
+  - Context: Package publication should happen automatically when a GitHub release is published.
+  - Decision: Add a `publish-npm` GitHub Actions workflow triggered by `release.published`, using `NPM_TOKEN` and validating release tag/version alignment before `npm publish`.
+  - Consequence: Publishing is automated and guarded against accidental version/tag mismatches.
