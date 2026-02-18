@@ -1,0 +1,51 @@
+# ─── macOS ────────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+.fseventsd
+
+# ─── Node / npm ───────────────────────────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# ─── Bun ──────────────────────────────────────────────────────────────────────
+bun.lockb
+.bunfig.toml
+
+# ─── TypeScript ───────────────────────────────────────────────────────────────
+dist/
+build/
+out/
+*.tsbuildinfo
+*.d.ts.map
+
+# ─── Environment / secrets ────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ─── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ─── IDE ──────────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*.sublime-workspace
+*.sublime-project
+
+# ─── Misc ─────────────────────────────────────────────────────────────────────
+.cache/
+.tmp/
+tmp/
+temp/
