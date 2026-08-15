@@ -11,10 +11,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/intellectronica/mdbasequery"
+    "url": "git+https://github.com/intellectronica/mdbasequery.git"
   },
   "bin": {
-    "mdbasequery": "./dist/cli.js"
+    "mdbasequery": "dist/cli.js"
   },
   "exports": {
     ".": {
