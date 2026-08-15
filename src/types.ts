@@ -55,6 +55,7 @@ export interface QueryStats {
   scannedFiles: number;
   markdownFiles: number;
   matchedRows: number;
+  returnedRows: number;
   elapsedMs: number;
 }
 

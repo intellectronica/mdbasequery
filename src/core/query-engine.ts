@@ -1018,7 +1018,8 @@ export function executeCompiledQuery(options: ExecuteQueryOptions): QueryResult 
     stats: {
       scannedFiles: options.documents.length,
       markdownFiles: options.documents.length,
-      matchedRows: limited.length,
+      matchedRows: sorted.length,
+      returnedRows: limited.length,
       elapsedMs: Date.now() - start,
     },
     diagnostics,

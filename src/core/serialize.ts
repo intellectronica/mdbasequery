@@ -22,12 +22,26 @@ function toDisplayValue(value: unknown): string {
   return String(value);
 }
 
-function escapeCsv(value: string): string {
-  if (!/[",\n]/.test(value)) {
-    return value;
+function sanitizeCsvCell(value: string): string {
+  const trimmed = value.trim();
+
+  if (/^[=+\-@]/.test(trimmed)) {
+    if (!Number.isFinite(Number(trimmed))) {
+      return `'${value}`;
+    }
   }
 
-  return `"${value.replaceAll('"', '""')}"`;
+  return value;
+}
+
+function escapeCsv(value: string): string {
+  const sanitized = sanitizeCsvCell(value);
+
+  if (!/[",\n]/.test(sanitized)) {
+    return sanitized;
+  }
+
+  return `"${sanitized.replaceAll('"', '""')}"`;
 }
 
 function getColumnHeader(column: string, result: QueryResult): string {
@@ -35,6 +49,26 @@ function getColumnHeader(column: string, result: QueryResult): string {
 }
 
 function serializeCsv(result: QueryResult): string {
+  if (result.groups && result.groups.length > 0) {
+    const columns = ["group", ...result.columns];
+    const lines: string[] = [columns.map((col) => escapeCsv(col === "group" ? "group" : getColumnHeader(col, result))).join(",")];
+
+    for (const group of result.groups) {
+      const groupKeyStr = toDisplayValue(group.key);
+
+      for (const row of group.rows) {
+        lines.push(
+          [
+            escapeCsv(groupKeyStr),
+            ...result.columns.map((column) => escapeCsv(toDisplayValue(row[column]))),
+          ].join(","),
+        );
+      }
+    }
+
+    return `${lines.join("\n")}\n`;
+  }
+
   const rows = normalizedRows(result);
   const columns = result.columns;
   const lines: string[] = [columns.map((col) => escapeCsv(getColumnHeader(col, result))).join(",")];
@@ -51,18 +85,37 @@ function serializeCsv(result: QueryResult): string {
   return `${lines.join("\n")}\n`;
 }
 
-function serializeMarkdownTable(result: QueryResult): string {
-  const rows = normalizedRows(result);
-  const columns = result.columns;
+function toMarkdownCell(value: unknown): string {
+  const text = toDisplayValue(value);
+  return text.replaceAll("|", "\\|").replace(/\r?\n/g, "<br>");
+}
+
+function renderSingleMarkdownTable(rows: Record<string, unknown>[], columns: string[], result: QueryResult): string {
   const headers = columns.map((col) => getColumnHeader(col, result));
   const header = `| ${headers.join(" | ")} |`;
   const divider = `| ${columns.map(() => "---").join(" | ")} |`;
   const body = rows.map((row) => {
-    const cells = columns.map((column) => toDisplayValue(row[column]).replaceAll("|", "\\|"));
+    const cells = columns.map((column) => toMarkdownCell(row[column]));
     return `| ${cells.join(" | ")} |`;
   });
 
-  return `${[header, divider, ...body].join("\n")}\n`;
+  return [header, divider, ...body].join("\n");
+}
+
+function serializeMarkdownTable(result: QueryResult): string {
+  if (result.groups && result.groups.length > 0) {
+    const sections: string[] = [];
+
+    for (const group of result.groups) {
+      const keyStr = toDisplayValue(group.key);
+      sections.push(`### ${keyStr}\n\n${renderSingleMarkdownTable(group.rows, result.columns, result)}`);
+    }
+
+    return `${sections.join("\n\n")}\n`;
+  }
+
+  const rows = normalizedRows(result);
+  return `${renderSingleMarkdownTable(rows, result.columns, result)}\n`;
 }
 
 export function serializeResult(result: QueryResult, format: OutputFormat): string {

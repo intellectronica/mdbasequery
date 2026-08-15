@@ -719,4 +719,27 @@ views:
     const md = serializeResult(result, "md");
     expect(md).toContain("| Document Title | Current Status |");
   });
+
+  test("stats records matchedRows (pre-limit) and returnedRows (post-limit)", () => {
+    const documents = [
+      makeDocument("a.md", { title: "A", score: 10 }),
+      makeDocument("b.md", { title: "B", score: 20 }),
+      makeDocument("c.md", { title: "C", score: 30 }),
+      makeDocument("d.md", { title: "D", score: 5 }),
+    ];
+
+    const specText = `
+filters: score >= 10
+views:
+  - type: table
+    name: default
+    limit: 2
+`.trim();
+
+    const result = runWithDocuments(specText, documents);
+
+    expect(result.stats.matchedRows).toBe(3);
+    expect(result.stats.returnedRows).toBe(2);
+    expect(result.rows).toHaveLength(2);
+  });
 });
