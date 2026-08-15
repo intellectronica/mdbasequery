@@ -1475,15 +1475,13 @@ export function evaluateAst(
 
   if (expression.kind === "binary") {
     if (expression.operator === "and" || expression.operator === "&&") {
-      return toBoolean(evaluateAst(expression.left, context, options))
-        ? evaluateAst(expression.right, context, options)
-        : false;
+      const left = evaluateAst(expression.left, context, options);
+      return toBoolean(left) ? evaluateAst(expression.right, context, options) : left;
     }
 
     if (expression.operator === "or" || expression.operator === "||") {
-      return toBoolean(evaluateAst(expression.left, context, options))
-        ? true
-        : evaluateAst(expression.right, context, options);
+      const left = evaluateAst(expression.left, context, options);
+      return toBoolean(left) ? left : evaluateAst(expression.right, context, options);
     }
 
     const left = evaluateAst(expression.left, context, options);

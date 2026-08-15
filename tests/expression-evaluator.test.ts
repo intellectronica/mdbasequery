@@ -97,4 +97,13 @@ describe("expression evaluator", () => {
   test("throws on unknown functions in strict mode", () => {
     expect(() => evaluateExpression("missingFn()", {}, { strict: true })).toThrow();
   });
+
+  test("and/or return operand values per JS semantics", () => {
+    expect(evaluateExpression("1 and 'high' or 'low'", {}, { strict: true })).toBe("high");
+    expect(evaluateExpression("0 and 'high' or 'low'", {}, { strict: true })).toBe("low");
+    expect(evaluateExpression("null and 'high'", {}, { strict: true })).toBeNull();
+    expect(evaluateExpression("'' or 0", {}, { strict: true })).toBe(0);
+    expect(evaluateExpression("0 || 'fallback'", {}, { strict: true })).toBe("fallback");
+    expect(evaluateExpression("'x' && 'y'", {}, { strict: true })).toBe("y");
+  });
 });

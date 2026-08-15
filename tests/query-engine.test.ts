@@ -55,6 +55,31 @@ describe("query engine", () => {
     expect(result.groups?.length).toBe(2);
   });
 
+  test("and/or formula produces operand values, not booleans (grouped.base band)", async () => {
+    const spec = parseBaseYaml(readFileSync(resolve(fixturesRoot, "queries/grouped.base"), "utf8"));
+    const compiled = compileQuery(spec);
+    const indexed = await indexVault({
+      rootDir: vaultDir,
+      include: ["**/*.md"],
+      exclude: [],
+      adapter: nodeAdapter,
+    });
+
+    const result = executeCompiledQuery({
+      compiled,
+      documents: indexed.documents,
+      view: "grouped",
+    });
+
+    const bandByTitle = Object.fromEntries(
+      result.rows.map((row) => [row.projected.title, row.projected["formula.band"]]),
+    );
+
+    expect(bandByTitle["Alpha"]).toBe("high");
+    expect(bandByTitle["Gamma"]).toBe("high");
+    expect(bandByTitle["Beta"]).toBe("low");
+  });
+
   test("uses view order as projection columns", async () => {
     const spec = parseBaseYaml(`
 views:
