@@ -116,11 +116,37 @@ export function resolveLinkTarget(
   );
 }
 
+async function mapConcurrent<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  if (items.length === 0) {
+    return [];
+  }
+
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+
+  async function worker(): Promise<void> {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await fn(items[index], index);
+    }
+  }
+
+  const workerCount = Math.min(concurrency, items.length);
+  const workers = Array.from({ length: workerCount }, () => worker());
+  await Promise.all(workers);
+
+  return results;
+}
+
 export async function indexVault(options: VaultIndexOptions): Promise<VaultIndexResult> {
   const entries = sortEntries(await options.adapter.listFilesRecursive(options.rootDir));
 
-  const documents: IndexedDocument[] = [];
-  let markdownFiles = 0;
+  const candidateEntries: Array<{ entry: RuntimeFileEntry; relativePath: string }> = [];
 
   for (const entry of entries) {
     const relativePath = normalizePath(options.adapter.relative(options.rootDir, entry.path));
@@ -133,12 +159,14 @@ export async function indexVault(options: VaultIndexOptions): Promise<VaultIndex
       continue;
     }
 
-    markdownFiles += 1;
+    candidateEntries.push({ entry, relativePath });
+  }
 
+  const documents = await mapConcurrent(candidateEntries, 32, async ({ entry, relativePath }) => {
     const raw = await options.adapter.readTextFile(entry.path);
     const metadata = parseMarkdownMetadata(raw);
 
-    documents.push({
+    return {
       note: {
         frontmatter: metadata.frontmatter,
       },
@@ -155,11 +183,11 @@ export async function indexVault(options: VaultIndexOptions): Promise<VaultIndex
         tags: metadata.tags,
         links: metadata.links,
         embeds: metadata.embeds,
-        backlinks: [],
+        backlinks: [] as string[],
         raw,
       },
-    });
-  }
+    } satisfies IndexedDocument;
+  });
 
   const indexes = buildPathLookupIndexes(documents);
 
@@ -182,6 +210,6 @@ export async function indexVault(options: VaultIndexOptions): Promise<VaultIndex
   return {
     documents,
     scannedFiles: entries.length,
-    markdownFiles,
+    markdownFiles: candidateEntries.length,
   };
 }
