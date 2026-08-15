@@ -52,4 +52,23 @@ describe("expression parser", () => {
   test("reports syntax errors with index", () => {
     expect(() => parseExpression("1 + )")).toThrow(ExpressionSyntaxError);
   });
+
+  test("decodes string literal escape sequences", () => {
+    expect(parseExpression('"a\\nb"').kind).toBe("literal");
+    expect(parseExpression('"a\\nb"').value).toBe("a\nb");
+    expect(parseExpression('"tab\\there"').value).toBe("tab\there");
+    expect(parseExpression('"cr\\r"').value).toBe("cr\r");
+    expect(parseExpression('"\\\\"').value).toBe("\\");
+    expect(parseExpression('"\\""').value).toBe('"');
+    expect(parseExpression("'\\''").value).toBe("'");
+    expect(parseExpression('"\\u0041"').value).toBe("A");
+    expect(parseExpression('"\\x41"').value).toBe("A");
+    expect(parseExpression('"\\u{1F600}"').value).toBe("\u{1F600}");
+    expect(parseExpression('"\\d+"').value).toBe("\\d+");
+  });
+
+  test("throws on malformed unicode escapes", () => {
+    expect(() => parseExpression('"\\u12"')).toThrow(ExpressionSyntaxError);
+    expect(() => parseExpression('"\\x4"')).toThrow(ExpressionSyntaxError);
+  });
 });

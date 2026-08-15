@@ -392,9 +392,73 @@ class Parser {
 
         if (current === "\\") {
           const next = this.input[this.offset + 1] ?? "";
-          value += next;
           this.offset += 2;
-          continue;
+
+          switch (next) {
+            case "n":
+              value += "\n";
+              continue;
+            case "r":
+              value += "\r";
+              continue;
+            case "t":
+              value += "\t";
+              continue;
+            case "b":
+              value += "\b";
+              continue;
+            case "f":
+              value += "\f";
+              continue;
+            case "v":
+              value += "\v";
+              continue;
+            case "0":
+              value += "\0";
+              continue;
+            case "u":
+              if (this.input[this.offset] === "{") {
+                const closeBrace = this.input.indexOf("}", this.offset);
+
+                if (closeBrace === -1) {
+                  throw new ExpressionSyntaxError("unterminated unicode escape", start);
+                }
+
+                const hex = this.input.slice(this.offset + 1, closeBrace);
+
+                if (!/^[0-9a-fA-F]+$/.test(hex)) {
+                  throw new ExpressionSyntaxError("invalid unicode escape", start);
+                }
+
+                value += String.fromCodePoint(Number.parseInt(hex, 16));
+                this.offset = closeBrace + 1;
+                continue;
+              }
+
+              const hex = this.input.slice(this.offset, this.offset + 4);
+
+              if (!/^[0-9a-fA-F]{4}$/.test(hex)) {
+                throw new ExpressionSyntaxError("invalid unicode escape", start);
+              }
+
+              value += String.fromCodePoint(Number.parseInt(hex, 16));
+              this.offset += 4;
+              continue;
+            case "x": {
+              const hex = this.input.slice(this.offset, this.offset + 2);
+
+              if (!/^[0-9a-fA-F]{2}$/.test(hex)) {
+                throw new ExpressionSyntaxError("invalid hex escape", start);
+              }
+
+              value += String.fromCodePoint(Number.parseInt(hex, 16));
+              this.offset += 2;
+              continue;
+            }
+            default:
+              value += next;
+              continue;
+          }
         }
 
         if (current === char) {
