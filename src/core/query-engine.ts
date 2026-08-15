@@ -189,6 +189,99 @@ function topoSort(formulas: Record<string, string>): string[] {
   return output;
 }
 
+function extractFormulaRefsFromAst(node: ExpressionNode, output: Set<string>): void {
+  switch (node.kind) {
+    case "literal":
+    case "identifier":
+      return;
+    case "member":
+      if (node.object.kind === "identifier" && node.object.name === "formula") {
+        output.add(node.property);
+      }
+      extractFormulaRefsFromAst(node.object, output);
+      return;
+    case "array":
+      for (const el of node.elements) {
+        extractFormulaRefsFromAst(el, output);
+      }
+      return;
+    case "object":
+      for (const entry of node.entries) {
+        extractFormulaRefsFromAst(entry.value, output);
+      }
+      return;
+    case "unary":
+      extractFormulaRefsFromAst(node.argument, output);
+      return;
+    case "binary":
+      extractFormulaRefsFromAst(node.left, output);
+      extractFormulaRefsFromAst(node.right, output);
+      return;
+    case "index":
+      extractFormulaRefsFromAst(node.object, output);
+      extractFormulaRefsFromAst(node.index, output);
+      return;
+    case "call":
+      extractFormulaRefsFromAst(node.callee, output);
+      for (const arg of node.args) {
+        extractFormulaRefsFromAst(arg, output);
+      }
+      return;
+  }
+}
+
+function extractFormulaRefsFromFilter(filter: CompiledFilter | undefined, output: Set<string>): void {
+  if (!filter) {
+    return;
+  }
+
+  if (filter.kind === "expr") {
+    extractFormulaRefsFromAst(filter.expression, output);
+    return;
+  }
+
+  filter.and?.forEach((entry) => extractFormulaRefsFromFilter(entry, output));
+  filter.or?.forEach((entry) => extractFormulaRefsFromFilter(entry, output));
+  extractFormulaRefsFromFilter(filter.not, output);
+}
+
+function partitionFormulaOrder(
+  globalFilter: CompiledFilter | undefined,
+  viewFilter: CompiledFilter | undefined,
+  compiledFormulas: Map<string, ExpressionNode>,
+  formulaOrder: string[],
+): { preFilterOrder: string[]; postFilterOrder: string[] } {
+  const directRefs = new Set<string>();
+  extractFormulaRefsFromFilter(globalFilter, directRefs);
+  extractFormulaRefsFromFilter(viewFilter, directRefs);
+
+  const needed = new Set<string>();
+
+  function addTransitive(name: string): void {
+    if (needed.has(name) || !compiledFormulas.has(name)) {
+      return;
+    }
+
+    needed.add(name);
+    const ast = compiledFormulas.get(name);
+
+    if (!ast) {
+      return;
+    }
+
+    const deps = new Set<string>();
+    extractFormulaRefsFromAst(ast, deps);
+    deps.forEach(addTransitive);
+  }
+
+  directRefs.forEach(addTransitive);
+
+  const preFilterOrder = formulaOrder.filter((name) => needed.has(name));
+  const postFilterOrder = formulaOrder.filter((name) => !needed.has(name));
+
+  return { preFilterOrder, postFilterOrder };
+}
+
 function compileFilter(filter?: FilterSpec): CompiledFilter | undefined {
   if (!filter) {
     return undefined;
@@ -833,6 +926,14 @@ export function executeCompiledQuery(options: ExecuteQueryOptions): QueryResult 
   }
 
   const astCache = new Map<string, ExpressionNode>();
+  const viewFilter = compiled.viewFilters.get(view.name);
+  const { preFilterOrder, postFilterOrder } = partitionFormulaOrder(
+    compiled.globalFilter,
+    viewFilter,
+    compiled.formulas,
+    compiled.formulaOrder,
+  );
+
   const rows: QueryRow[] = [];
 
   for (const document of options.documents) {
@@ -854,15 +955,20 @@ export function executeCompiledQuery(options: ExecuteQueryOptions): QueryResult 
     };
 
     try {
-      evaluateFormulas(row, compiled.formulas, compiled.formulaOrder, compiled.strict, filesByPath);
+      if (preFilterOrder.length > 0) {
+        evaluateFormulas(row, compiled.formulas, preFilterOrder, compiled.strict, filesByPath);
+      }
 
       if (!evaluateFilter(compiled.globalFilter, row, compiled.strict, filesByPath)) {
         continue;
       }
 
-      const viewFilter = compiled.viewFilters.get(view.name);
       if (!evaluateFilter(viewFilter, row, compiled.strict, filesByPath)) {
         continue;
+      }
+
+      if (postFilterOrder.length > 0) {
+        evaluateFormulas(row, compiled.formulas, postFilterOrder, compiled.strict, filesByPath);
       }
 
       rows.push(row);

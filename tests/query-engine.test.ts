@@ -658,4 +658,31 @@ views:
     expect(asc.rows.map((row) => row.projected.title)).toEqual(["B", "C", "A"]);
     expect(desc.rows.map((row) => row.projected.title)).toEqual(["A", "C", "B"]);
   });
+
+  test("display-only formulas are evaluated only on notes that pass filters", () => {
+    const documents = [
+      makeDocument("filtered-out.md", { title: "Filtered", score: 1 }),
+      makeDocument("matched.md", { title: "Matched", score: 10, count: 5 }),
+    ];
+
+    // formula.heavy will fail/throw if evaluated on filtered-out.md because `count` is missing
+    const specText = `
+filters: score >= 5
+formulas:
+  heavy: count.toFixed(2)
+views:
+  - type: table
+    name: default
+    properties:
+      - title
+      - formula.heavy
+`.trim();
+
+    const result = runWithDocuments(specText, documents);
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].projected.title).toBe("Matched");
+    expect(result.rows[0].projected["formula.heavy"]).toBe("5.00");
+    expect(result.diagnostics.errors).toHaveLength(0);
+  });
 });
