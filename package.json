@@ -34,7 +34,9 @@
     "test:node": "bun run build && node --test test-runtime/node-conformance.test.mjs",
     "test:deno": "bun run build && deno test -A test-runtime/deno-conformance.test.ts",
     "ci": "bun run lint-typecheck && bun run test:bun && bun run test:node && bun run test:deno",
-    "cli": "bun run src/cli.ts"
+    "cli": "bun run src/cli.ts",
+    "bench:gen": "bun run bench/generate-vault.ts",
+    "bench": "bun run bench/run.ts"
   },
   "dependencies": {
     "minimatch": "^10.1.1",
