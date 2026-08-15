@@ -150,7 +150,7 @@ Diagnostics are returned as part of result metadata (and included in structured 
 - Strict mode is enabled by default.
 - Summary formulas evaluate with `values` bound to selected column values.
 - Output ordering is deterministic.
-- `this` context in CLI/library mode is deterministic metadata (`filePath`, `name`).
+- `this` context in CLI/library mode is a file-like record of the base file when `--base`/`basePath` is used, otherwise an empty record at the vault root. Supports the documented Obsidian patterns (`this.file.folder`, `file.hasLink(this.file)`).
 
 ## Library Manual
 

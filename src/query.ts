@@ -9,6 +9,7 @@ import type {
   ExecuteQueryOptions,
 } from "./core/query-engine.js";
 import type {
+  FileRecord,
   IndexedDocument,
   QueryBaseOptions,
   QueryResult,
@@ -84,12 +85,51 @@ export async function runCompiledQuery(
   return executeCompiledQuery(executionOptions);
 }
 
+function resolveThisFile(options: QueryBaseOptions, adapter: RuntimeAdapter, dir: string): FileRecord | undefined {
+  const targetPath = options.basePath;
+
+  if (!targetPath) {
+    return undefined;
+  }
+
+  const resolved = adapter.resolve(targetPath);
+  const relativePath = normalizeFilePath(adapter.relative(dir, resolved));
+  const slashIndex = relativePath.lastIndexOf("/");
+  const name = slashIndex === -1 ? relativePath : relativePath.slice(slashIndex + 1);
+  const folder = slashIndex === -1 ? "" : relativePath.slice(0, slashIndex);
+  const dotIndex = name.lastIndexOf(".");
+  const basename = dotIndex === -1 ? name : name.slice(0, dotIndex);
+  const ext = dotIndex === -1 ? "" : name.slice(dotIndex);
+
+  return {
+    name,
+    basename,
+    path: relativePath,
+    folder,
+    ext,
+    size: 0,
+    ctime: new Date(0),
+    mtime: new Date(0),
+    properties: {},
+    tags: [],
+    links: [],
+    embeds: [],
+    backlinks: [],
+    raw: "",
+  };
+}
+
+function normalizeFilePath(path: string): string {
+  return path.replaceAll("\\", "/");
+}
+
 export async function queryBase(options: QueryBaseOptions): Promise<QueryResult> {
   const adapter = options.adapter ?? detectRuntimeAdapter();
   const strict = options.strict ?? true;
   const dir = options.dir ? adapter.resolve(options.dir) : adapter.cwd();
   const spec = await loadSpec(options, adapter);
   const compiled = compileQuery(spec, { strict });
+  const thisFile = resolveThisFile(options, adapter, dir);
 
   const indexed = await indexVault({
     rootDir: dir,
@@ -102,6 +142,7 @@ export async function queryBase(options: QueryBaseOptions): Promise<QueryResult>
     compiled,
     view: options.view,
     documents: indexed.documents,
+    thisFile,
     diagnostics: {
       warnings: [],
       errors: [],

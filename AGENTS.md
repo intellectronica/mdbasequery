@@ -100,7 +100,7 @@ When asked to create commits in this repository:
 
 ## Compatibility Notes
 
-- `this` context is deterministic CLI/library metadata (`filePath`, `name`) rather than Obsidian embed-location semantics. Known gap: documented `this` patterns (`this.file.folder`, `file.hasLink(this.file)`) do not work; redesign tracked in #8.
+- `this` is a file-like record. With `--base`/`basePath` it is a synthetic record of the base file itself (path/folder resolved relative to the vault root; no file read); in `--yaml`/flag/library mode without a base path it is an empty record at the vault root. This diverges from Obsidian embed-location semantics but supports the documented patterns (`this.file.folder`, `file.hasLink(this.file)`, `author == this`).
 - `file.folder` is supported and resolves to the vault-relative parent directory (`""` for root-level notes).
 - `file.backlinks` IS implemented: computed during indexing from resolved `file.links` targets (path, name, basename, and basename-with-`.md` lookups). Known limitation: basename collisions across folders resolve arbitrarily; ambiguity policy tracked in #14.
 - CSV serialisation uses the selected/declared column list as the canonical header order.

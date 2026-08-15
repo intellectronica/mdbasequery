@@ -423,6 +423,95 @@ views:
     expect(result.summaries?.score).toBe(6.667);
   });
 
+  test("this is a file-like object, stable across rows", async () => {
+    const spec = parseBaseYaml(`
+filters: this.file.ext == ".base"
+views:
+  - type: table
+    name: default
+    properties:
+      - file.name
+`.trim());
+
+    const compiled = compileQuery(spec);
+    const indexed = await indexVault({
+      rootDir: vaultDir,
+      include: ["**/*.md"],
+      exclude: [],
+      adapter: nodeAdapter,
+    });
+
+    const result = executeCompiledQuery({
+      compiled,
+      documents: indexed.documents,
+      view: "default",
+      thisFile: {
+        name: "base.base",
+        basename: "base",
+        path: "queries/base.base",
+        folder: "queries",
+        ext: ".base",
+        size: 0,
+        ctime: new Date(0),
+        mtime: new Date(0),
+        properties: {},
+        tags: [],
+        links: [],
+        embeds: [],
+        backlinks: [],
+        raw: "",
+      },
+    });
+
+    expect(result.rows).toHaveLength(3);
+    expect(result.rows[0].this.path).toBe("queries/base.base");
+    expect(result.rows[1].this.path).toBe("queries/base.base");
+  });
+
+  test("file.hasLink(this.file) works when a note links to the base file", async () => {
+    const spec = parseBaseYaml(`
+filters: file.hasLink(this.file)
+views:
+  - type: table
+    name: default
+    properties:
+      - file.name
+`.trim());
+
+    const compiled = compileQuery(spec);
+    const indexed = await indexVault({
+      rootDir: vaultDir,
+      include: ["**/*.md"],
+      exclude: [],
+      adapter: nodeAdapter,
+    });
+
+    const result = executeCompiledQuery({
+      compiled,
+      documents: indexed.documents,
+      view: "default",
+      thisFile: {
+        name: "beta.md",
+        basename: "beta",
+        path: "beta.md",
+        folder: "",
+        ext: ".md",
+        size: 0,
+        ctime: new Date(0),
+        mtime: new Date(0),
+        properties: {},
+        tags: [],
+        links: [],
+        embeds: [],
+        backlinks: [],
+        raw: "",
+      },
+    });
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].projected["file.name"]).toBe("alpha.md");
+  });
+
   test("frontmatter date properties are Dates: comparable and formatable", async () => {
     const spec = parseBaseYaml(`
 filters: created < date("2024-02-01")

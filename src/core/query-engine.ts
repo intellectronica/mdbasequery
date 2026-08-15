@@ -2,6 +2,7 @@ import { GLOBAL_FUNCTION_NAMES, compileExpression, evaluateAst, evaluateExpressi
 
 import type { ExpressionNode } from "./expression/index.js";
 import type {
+  FileRecord,
   FilterSpec,
   IndexedDocument,
   QueryDiagnostics,
@@ -723,6 +724,7 @@ export interface ExecuteQueryOptions {
   view?: string;
   documents: IndexedDocument[];
   diagnostics?: QueryDiagnostics;
+  thisFile?: FileRecord;
 }
 
 export function executeCompiledQuery(options: ExecuteQueryOptions): QueryResult {
@@ -736,6 +738,24 @@ export function executeCompiledQuery(options: ExecuteQueryOptions): QueryResult 
     validateStrictQuery(compiled, options.documents, view);
   }
 
+  const thisFile: FileRecord =
+    options.thisFile ?? {
+      name: "",
+      basename: "",
+      path: "",
+      folder: "",
+      ext: "",
+      size: 0,
+      ctime: new Date(0),
+      mtime: new Date(0),
+      properties: {},
+      tags: [],
+      links: [],
+      embeds: [],
+      backlinks: [],
+      raw: "",
+    };
+
   for (const document of options.documents) {
     filesByPath.set(document.file.path, document.file);
   }
@@ -747,10 +767,7 @@ export function executeCompiledQuery(options: ExecuteQueryOptions): QueryResult 
       note: document.note.frontmatter,
       file: document.file,
       formula: {},
-      this: {
-        filePath: document.file.path,
-        name: document.file.name,
-      },
+      this: thisFile,
       projected: {},
     };
 
