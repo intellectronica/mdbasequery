@@ -134,6 +134,38 @@ describe("expression evaluator", () => {
     expect(evaluateExpression("[1,2,3].mean().round(3)", {}, { strict: true })).toBe(2);
   });
 
+  test("plain strings do not compare equal via .md path normalisation", () => {
+    expect(evaluateExpression('"notes.md" == "notes"', {}, { strict: true })).toBeFalse();
+    expect(evaluateExpression('"./a.md" == "a.md"', {}, { strict: true })).toBeFalse();
+    expect(evaluateExpression('"notes.md" != "notes"', {}, { strict: true })).toBeTrue();
+    expect(evaluateExpression('["notes.md"].contains("notes")', {}, { strict: true })).toBeFalse();
+  });
+
+  test("link and file values still compare via path resolution", () => {
+    expect(evaluateExpression('link("a") == link("a.md")', {}, { strict: true })).toBeTrue();
+    expect(evaluateExpression('link("a") == "a.md"', {}, { strict: true })).toBeTrue();
+    expect(evaluateExpression('link("a") == "notes.md"', {}, { strict: true })).toBeFalse();
+
+    const fileContext = {
+      file: {
+        name: "beta.md",
+        basename: "beta",
+        path: "beta.md",
+        folder: "",
+        ext: ".md",
+        size: 10,
+        ctime: new Date("2024-01-01"),
+        mtime: new Date("2024-01-02"),
+        tags: [],
+        links: [],
+        properties: {},
+      },
+    };
+
+    expect(evaluateExpression('file == "beta.md"', fileContext, { strict: true })).toBeTrue();
+    expect(evaluateExpression('"beta" == file', fileContext, { strict: true })).toBeTrue();
+  });
+
   test("date.format() handles Moment tokens", () => {
     const expr = (format: string) =>
       evaluateExpression(`date("2025-01-04 15:06:07").format("${format}")`, {}, { strict: true });

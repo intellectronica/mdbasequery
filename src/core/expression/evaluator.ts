@@ -585,11 +585,16 @@ function equalsValues(left: unknown, right: unknown, options: EvaluateOptions): 
     }
   }
 
-  const leftPath = resolveComparablePath(left);
-  const rightPath = resolveComparablePath(right);
+  const leftIsPathValue = isLinkValue(left) || isFileLike(left);
+  const rightIsPathValue = isLinkValue(right) || isFileLike(right);
 
-  if (leftPath !== undefined && rightPath !== undefined) {
-    return leftPath === rightPath;
+  if (leftIsPathValue || rightIsPathValue) {
+    const leftPath = resolveComparablePath(left);
+    const rightPath = resolveComparablePath(right);
+
+    if (leftPath !== undefined && rightPath !== undefined) {
+      return leftPath === rightPath;
+    }
   }
 
   if (isDurationValue(left) && isDurationValue(right)) {
