@@ -1,7 +1,7 @@
-import { GLOBAL_FUNCTION_NAMES, compileExpression, evaluateAst, evaluateExpression } from "./expression/index.js";
+import { GLOBAL_FUNCTION_NAMES, compileExpression, evaluateAst } from "./expression/index.js";
 import { buildPathLookupIndexes } from "./vault-index.js";
 
-import type { ExpressionNode } from "./expression/index.js";
+import type { EvaluationContext, ExpressionNode } from "./expression/index.js";
 import type {
   FileRecord,
   FilterSpec,
@@ -51,9 +51,32 @@ type CompiledFilter =
   | { kind: "expr"; expression: ExpressionNode }
   | { kind: "tree"; and?: CompiledFilter[]; or?: CompiledFilter[]; not?: CompiledFilter };
 
-function withEvalContext(row: QueryRow, filesByPath: Map<string, unknown>): Record<string, unknown> {
+function getPropertyAst(property: string, astCache?: Map<string, ExpressionNode>): ExpressionNode {
+  if (astCache) {
+    const cached = astCache.get(property);
+
+    if (cached) {
+      return cached;
+    }
+
+    const compiled = compileExpression(property);
+    astCache.set(property, compiled);
+    return compiled;
+  }
+
+  return compileExpression(property);
+}
+
+function getRowEvalContext(row: QueryRow, filesByPath?: Map<string, unknown>): EvaluationContext {
+  if (row.evalContext) {
+    return row.evalContext as EvaluationContext;
+  }
+
   return {
-    ...row,
+    note: row.note,
+    file: row.file,
+    formula: row.formula,
+    this: row.this,
     filesByPath,
   };
 }
@@ -64,13 +87,16 @@ function evaluatePropertyRef(
   property: string,
   row: QueryRow,
   strict: boolean,
-  filesByPath: Map<string, unknown>,
+  filesByPath?: Map<string, unknown>,
+  astCache?: Map<string, ExpressionNode>,
 ): unknown {
   if (!DOTTED_IDENTIFIER_RE.test(property) && Object.prototype.hasOwnProperty.call(row.note, property)) {
     return row.note[property];
   }
 
-  return evaluateExpression(property, withEvalContext(row, filesByPath), { strict });
+  const context = getRowEvalContext(row, filesByPath);
+  const ast = getPropertyAst(property, astCache);
+  return evaluateAst(ast, context, { strict });
 }
 
 function isEmptySortValue(value: unknown): boolean {
@@ -187,14 +213,15 @@ function evaluateFilter(
   filter: CompiledFilter | undefined,
   context: QueryRow,
   strict: boolean,
-  filesByPath: Map<string, unknown>,
+  filesByPath?: Map<string, unknown>,
 ): boolean {
   if (!filter) {
     return true;
   }
 
   if (filter.kind === "expr") {
-    const result = evaluateAst(filter.expression, withEvalContext(context, filesByPath), { strict });
+    const evalContext = getRowEvalContext(context, filesByPath);
+    const result = evaluateAst(filter.expression, evalContext, { strict });
     return Boolean(result);
   }
 
@@ -400,8 +427,10 @@ function evaluateFormulas(
   formulas: Map<string, ExpressionNode>,
   order: string[],
   strict: boolean,
-  filesByPath: Map<string, unknown>,
+  filesByPath?: Map<string, unknown>,
 ): void {
+  const context = getRowEvalContext(row, filesByPath);
+
   for (const name of order) {
     const ast = formulas.get(name);
 
@@ -409,7 +438,7 @@ function evaluateFormulas(
       continue;
     }
 
-    row.formula[name] = evaluateAst(ast, withEvalContext(row, filesByPath), { strict });
+    row.formula[name] = evaluateAst(ast, context, { strict });
   }
 }
 
@@ -417,12 +446,13 @@ function projectRow(
   row: QueryRow,
   columns: string[],
   strict: boolean,
-  filesByPath: Map<string, unknown>,
+  filesByPath?: Map<string, unknown>,
+  astCache?: Map<string, ExpressionNode>,
 ): Record<string, unknown> {
   const output: Record<string, unknown> = {};
 
   for (const column of columns) {
-    output[column] = evaluatePropertyRef(column, row, strict, filesByPath);
+    output[column] = evaluatePropertyRef(column, row, strict, filesByPath, astCache);
   }
 
   return output;
@@ -432,14 +462,25 @@ function stableSort(
   rows: QueryRow[],
   view: ViewSpec,
   strict: boolean,
-  filesByPath: Map<string, unknown>,
+  filesByPath?: Map<string, unknown>,
+  astCache?: Map<string, ExpressionNode>,
 ): QueryRow[] {
   const order = view.sort ?? [];
 
-  const sorted = [...rows].sort((left, right) => {
-    for (const spec of order) {
-      const leftValue = evaluatePropertyRef(spec.by, left, strict, filesByPath);
-      const rightValue = evaluatePropertyRef(spec.by, right, strict, filesByPath);
+  if (order.length === 0) {
+    return [...rows].sort((left, right) => left.file.path.localeCompare(right.file.path));
+  }
+
+  const decorated = rows.map((row) => ({
+    row,
+    keys: order.map((spec) => evaluatePropertyRef(spec.by, row, strict, filesByPath, astCache)),
+  }));
+
+  decorated.sort((left, right) => {
+    for (let index = 0; index < order.length; index += 1) {
+      const spec = order[index];
+      const leftValue = left.keys[index];
+      const rightValue = right.keys[index];
 
       const leftEmpty = isEmptySortValue(leftValue);
       const rightEmpty = isEmptySortValue(rightValue);
@@ -455,17 +496,18 @@ function stableSort(
       }
     }
 
-    return left.file.path.localeCompare(right.file.path);
+    return left.row.file.path.localeCompare(right.row.file.path);
   });
 
-  return sorted;
+  return decorated.map((entry) => entry.row);
 }
 
 function groupRows(
   rows: QueryRow[],
   view: ViewSpec,
   strict: boolean,
-  filesByPath: Map<string, unknown>,
+  filesByPath?: Map<string, unknown>,
+  astCache?: Map<string, ExpressionNode>,
 ): Array<{ key: unknown; rows: QueryRow[] }> | undefined {
   if (!view.groupBy) {
     return undefined;
@@ -477,7 +519,7 @@ function groupRows(
   const groups = new Map<string, { key: unknown; rows: QueryRow[] }>();
 
   for (const row of rows) {
-    const key = evaluatePropertyRef(groupProperty, row, strict, filesByPath);
+    const key = evaluatePropertyRef(groupProperty, row, strict, filesByPath, astCache);
     const mapKey = JSON.stringify(key);
 
     if (!groups.has(mapKey)) {
@@ -791,15 +833,25 @@ export function executeCompiledQuery(options: ExecuteQueryOptions): QueryResult 
     filesByPath.set(shortName, document.file);
   }
 
+  const astCache = new Map<string, ExpressionNode>();
   const rows: QueryRow[] = [];
 
   for (const document of options.documents) {
-    const row: QueryRow = {
+    const evalContext: EvaluationContext = {
       note: document.note.frontmatter,
       file: document.file,
       formula: {},
       this: thisFile as unknown as Record<string, unknown>,
+      filesByPath,
+    };
+
+    const row: QueryRow = {
+      note: document.note.frontmatter,
+      file: document.file,
+      formula: evalContext.formula as Record<string, unknown>,
+      this: thisFile as unknown as Record<string, unknown>,
       projected: {},
+      evalContext,
     };
 
     try {
@@ -821,7 +873,7 @@ export function executeCompiledQuery(options: ExecuteQueryOptions): QueryResult 
     }
   }
 
-  const sorted = stableSort(rows, view, compiled.strict, filesByPath);
+  const sorted = stableSort(rows, view, compiled.strict, filesByPath, astCache);
   const limited = applyLimit(sorted, view);
 
   const columns =
@@ -833,10 +885,10 @@ export function executeCompiledQuery(options: ExecuteQueryOptions): QueryResult 
     inferColumns(limited, compiled);
 
   for (const row of limited) {
-    row.projected = projectRow(row, columns, compiled.strict, filesByPath);
+    row.projected = projectRow(row, columns, compiled.strict, filesByPath, astCache);
   }
 
-  const groups = groupRows(limited, view, compiled.strict, filesByPath)?.map((group) => ({
+  const groups = groupRows(limited, view, compiled.strict, filesByPath, astCache)?.map((group) => ({
     key: group.key,
     rows: group.rows.map((row) => row.projected),
   }));

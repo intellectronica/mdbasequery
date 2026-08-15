@@ -72,6 +72,7 @@ export interface QueryRow {
   formula: Record<string, unknown>;
   this: Record<string, unknown>;
   projected: Record<string, unknown>;
+  evalContext?: unknown;
 }
 
 export interface FileRecord {
