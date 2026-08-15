@@ -90,14 +90,6 @@ When implementation decisions affect compatibility, runtime behaviour, performan
 4. When adding/removing dependencies, record why and cross-runtime impact.
 5. Keep AGENTS.md as living operational memory, not static policy text.
 
-## Git Workflow
-
-When asked to create commits in this repository:
-
-1. Commit logical units with clear messages.
-2. Prefix commit messages with `[AI] `.
-3. Never rewrite remote history without explicit user instruction.
-
 ## Compatibility Notes
 
 - `this` is a file-like record. With `--base`/`basePath` it is a synthetic record of the base file itself (path/folder resolved relative to the vault root; no file read); in `--yaml`/flag/library mode without a base path it is an empty record at the vault root. This diverges from Obsidian embed-location semantics but supports the documented patterns (`this.file.folder`, `file.hasLink(this.file)`, `author == this`).
@@ -108,13 +100,3 @@ When asked to create commits in this repository:
 - Frontmatter wikilinks (`[[target]]`, `[[target|display]]`) are coerced to Link objects at index time and included in `file.links`. `link.asFile()` returns `null` in strict mode when target does not resolve.
 - Duration values support numeric property access (`duration.days`, `duration.hours`, `duration.minutes`, `duration.seconds`, `duration.milliseconds`).
 - Frontmatter date properties are coerced to `Date` at index time when they match `YYYY-MM-DD` or `YYYY-MM-DD[T ]HH:mm(:ss(.SSS)?)(offset)?`. Invalid date-like strings and `YYYY-MM` month-granularity values remain strings.
-
-## Improvement Plan (tracked in GitHub issues)
-
-A full audited improvement plan (verified against main @ e80b674, v0.0.1) is filed as issues #1–#25:
-
-- P0 correctness: #1 (and/or operand semantics), #2 (strict-mode identifiers), #3 (CRLF/EOF frontmatter), #4 (date coercion), #5 (groups raw leak), #6 (Moment format tokens), #7 (values.mean), #8 (`this` semantics), #9 (`.md` string equality), #10 (string escapes), #11 (tags in code blocks), #12 (links vs embeds/external), #13 (sort comparator), #14 (backlinks docs/collisions).
-- P1 performance: #15 (expression re-parse + context churn), #16 (sequential I/O), #17 (drop `raw`), #18 (lazy formula evaluation), #19 (benchmark harness).
-- P2 usability: #20 (displayName), #21 (CLI polish), #22 (serialisation correctness), #23 (diagnostics/schema warnings), #24 (compat gaps: link coercion, asFile, duration fields, random), #25 (conformance parity + linter).
-
-Each issue's acceptance criteria includes updating these notes when it lands.
