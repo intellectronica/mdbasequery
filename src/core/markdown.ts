@@ -12,17 +12,19 @@ function uniqueSorted(values: string[]): string[] {
 }
 
 export function extractFrontmatter(raw: string): Record<string, unknown> {
-  if (!raw.startsWith("---\n")) {
+  const normalized = raw.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
+
+  if (!normalized.startsWith("---\n") && !normalized.startsWith("--- ")) {
     return {};
   }
 
-  const closingIndex = raw.indexOf("\n---\n", 4);
+  const closingIndex = normalized.search(/\n---[ \t]*(?:\n|$)/);
 
   if (closingIndex === -1) {
     return {};
   }
 
-  const yamlBody = raw.slice(4, closingIndex);
+  const yamlBody = normalized.slice(4, closingIndex);
 
   if (yamlBody.trim().length === 0) {
     return {};
