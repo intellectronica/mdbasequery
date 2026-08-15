@@ -216,4 +216,192 @@ views:
     expect(result.rows[0].projected["file.folder"]).toBe("nested");
     expect(result.diagnostics.errors).toHaveLength(0);
   });
+
+  test("strict mode rejects identifiers that exist nowhere in the vault", async () => {
+    const spec = parseBaseYaml(`
+filters: scoree >= 7
+views:
+  - type: table
+    name: default
+`.trim());
+
+    const compiled = compileQuery(spec);
+    const indexed = await indexVault({
+      rootDir: vaultDir,
+      include: ["**/*.md"],
+      exclude: [],
+      adapter: nodeAdapter,
+    });
+
+    expect(() =>
+      executeCompiledQuery({
+        compiled,
+        documents: indexed.documents,
+        view: "default",
+      }),
+    ).toThrow(/scoree/);
+  });
+
+  test("strict mode rejects undeclared formula references", async () => {
+    const spec = parseBaseYaml(`
+views:
+  - type: table
+    name: default
+    filters: formula.missing > 3
+`.trim());
+
+    const compiled = compileQuery(spec);
+    const indexed = await indexVault({
+      rootDir: vaultDir,
+      include: ["**/*.md"],
+      exclude: [],
+      adapter: nodeAdapter,
+    });
+
+    expect(() =>
+      executeCompiledQuery({
+        compiled,
+        documents: indexed.documents,
+        view: "default",
+      }),
+    ).toThrow(/formula "missing" is not declared/);
+  });
+
+  test("strict mode rejects unknown projection columns", async () => {
+    const spec = parseBaseYaml(`
+views:
+  - type: table
+    name: default
+    properties:
+      - title
+      - does_not_exist_anywhere
+`.trim());
+
+    const compiled = compileQuery(spec);
+    const indexed = await indexVault({
+      rootDir: vaultDir,
+      include: ["**/*.md"],
+      exclude: [],
+      adapter: nodeAdapter,
+    });
+
+    expect(() =>
+      executeCompiledQuery({
+        compiled,
+        documents: indexed.documents,
+        view: "default",
+      }),
+    ).toThrow(/does_not_exist_anywhere/);
+  });
+
+  test("strict mode tolerates keys missing from some notes (heterogeneous vaults)", async () => {
+    const spec = parseBaseYaml(`
+filters: if(due, true, false)
+views:
+  - type: table
+    name: default
+`.trim());
+
+    const compiled = compileQuery(spec);
+
+    const makeDocument = (path: string, frontmatter: Record<string, unknown>) => ({
+      note: { frontmatter },
+      file: {
+        name: path.split("/").pop() ?? path,
+        basename: (path.split("/").pop() ?? path).replace(/\.md$/, ""),
+        path,
+        folder: path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "",
+        ext: ".md",
+        size: 1,
+        ctime: new Date(0),
+        mtime: new Date(0),
+        properties: frontmatter,
+        tags: [] as string[],
+        links: [] as string[],
+        embeds: [] as string[],
+        backlinks: [] as string[],
+        raw: "",
+      },
+    });
+
+    const result = executeCompiledQuery({
+      compiled,
+      documents: [
+        makeDocument("a.md", { title: "A" }),
+        makeDocument("b.md", { title: "B", due: "2025-01-01" }),
+      ],
+      view: "default",
+    });
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].projected.title).toBe("B");
+    expect(result.diagnostics.errors).toHaveLength(0);
+  });
+
+  test("non-strict mode stays fully permissive", async () => {
+    const spec = parseBaseYaml(`
+filters: scoree >= 7
+views:
+  - type: table
+    name: default
+`.trim());
+
+    const compiled = compileQuery(spec, { strict: false });
+    const indexed = await indexVault({
+      rootDir: vaultDir,
+      include: ["**/*.md"],
+      exclude: [],
+      adapter: nodeAdapter,
+    });
+
+    const result = executeCompiledQuery({
+      compiled,
+      documents: indexed.documents,
+      view: "default",
+    });
+
+    expect(result.rows).toHaveLength(0);
+  });
+
+  test("strict mode allows lambda-scoped value/index/acc in list methods", async () => {
+    const spec = parseBaseYaml(`
+filters: tags.filter(value == "urgent").length > 0
+views:
+  - type: table
+    name: default
+`.trim());
+
+    const compiled = compileQuery(spec);
+
+    const makeDocument = (path: string, frontmatter: Record<string, unknown>) => ({
+      note: { frontmatter },
+      file: {
+        name: path.split("/").pop() ?? path,
+        basename: (path.split("/").pop() ?? path).replace(/\.md$/, ""),
+        path,
+        folder: path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "",
+        ext: ".md",
+        size: 1,
+        ctime: new Date(0),
+        mtime: new Date(0),
+        properties: frontmatter,
+        tags: [] as string[],
+        links: [] as string[],
+        embeds: [] as string[],
+        backlinks: [] as string[],
+        raw: "",
+      },
+    });
+
+    expect(() =>
+      executeCompiledQuery({
+        compiled,
+        documents: [
+          makeDocument("a.md", { title: "A", tags: ["urgent"] }),
+          makeDocument("b.md", { title: "B", tags: ["chill"] }),
+        ],
+        view: "default",
+      }),
+    ).not.toThrow();
+  });
 });

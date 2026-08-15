@@ -821,8 +821,7 @@ function matchesLinkTarget(link: string, target: string): boolean {
   return left === right || basename(left) === basename(right);
 }
 
-const globalFunctions: Record<string, GlobalFunction> = {
-  escapeHTML(argNodes, context, options): string {
+const globalFunctions: Record<string, GlobalFunction> = {  escapeHTML(argNodes, context, options): string {
     const [input] = evaluateArgNodes(argNodes, context, options);
     return escapeHtml(stringifyValue(input));
   },
@@ -979,6 +978,8 @@ const globalFunctions: Record<string, GlobalFunction> = {
     return Array.isArray(values) ? values.length : 0;
   },
 };
+
+export const GLOBAL_FUNCTION_NAMES: readonly string[] = Object.freeze(Object.keys(globalFunctions));
 
 const anyMethods: Record<string, MethodFunction> = {
   isTruthy(target): boolean {

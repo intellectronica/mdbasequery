@@ -251,7 +251,7 @@ console.log(first.rows.length, second.rows.length);
 ### Error Handling
 
 - Schema/YAML issues throw validation errors (for example from `parseBaseYaml`).
-- Strict mode rejects unknown identifiers/functions.
+- Strict mode (default) rejects identifiers that exist nowhere in the vault (typo'd properties, undeclared `formula.X` references) and unknown functions with clear errors naming the identifier and the containing expression. Properties present on only *some* notes remain valid and evaluate as empty on notes that lack them.
 - Formula cycles throw explicit cycle errors.
 - CLI returns exit code `1` for failures and diagnostic errors.
 

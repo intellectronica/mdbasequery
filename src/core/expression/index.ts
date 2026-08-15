@@ -1,4 +1,4 @@
-export { compileExpression, evaluateAst, evaluateExpression } from "./evaluator.js";
+export { compileExpression, evaluateAst, evaluateExpression, GLOBAL_FUNCTION_NAMES } from "./evaluator.js";
 export { ExpressionSyntaxError, parseExpression } from "./parser.js";
 export type {
   BinaryNode,

@@ -1,4 +1,4 @@
-import { compileExpression, evaluateAst, evaluateExpression } from "./expression/index.js";
+import { GLOBAL_FUNCTION_NAMES, compileExpression, evaluateAst, evaluateExpression } from "./expression/index.js";
 
 import type { ExpressionNode } from "./expression/index.js";
 import type {
@@ -208,6 +208,170 @@ function getView(spec: QuerySpec, requestedName?: string): ViewSpec {
   }
 
   return view;
+}
+
+const KNOWN_IDENTIFIERS = new Set<string>(["file", "note", "formula", "this", "values", ...GLOBAL_FUNCTION_NAMES]);
+
+function validateExpressionIdentifiers(
+  node: ExpressionNode,
+  known: Set<string>,
+  declaredFormulas: Set<string>,
+  source: string,
+): void {
+  switch (node.kind) {
+    case "literal":
+      return;
+    case "identifier":
+      if (!known.has(node.name)) {
+        throw new Error(`strict mode: unknown identifier "${node.name}" in ${source}`);
+      }
+      return;
+    case "array":
+      for (const element of node.elements) {
+        validateExpressionIdentifiers(element, known, declaredFormulas, source);
+      }
+      return;
+    case "object":
+      for (const entry of node.entries) {
+        validateExpressionIdentifiers(entry.value, known, declaredFormulas, source);
+      }
+      return;
+    case "unary":
+      validateExpressionIdentifiers(node.argument, known, declaredFormulas, source);
+      return;
+    case "binary":
+      validateExpressionIdentifiers(node.left, known, declaredFormulas, source);
+      validateExpressionIdentifiers(node.right, known, declaredFormulas, source);
+      return;
+    case "member": {
+      validateExpressionIdentifiers(node.object, known, declaredFormulas, source);
+
+      if (node.object.kind === "identifier" && node.object.name === "formula") {
+        if (!declaredFormulas.has(node.property)) {
+          throw new Error(`strict mode: formula "${node.property}" is not declared in ${source}`);
+        }
+      }
+
+      return;
+    }
+    case "index":
+      validateExpressionIdentifiers(node.object, known, declaredFormulas, source);
+      validateExpressionIdentifiers(node.index, known, declaredFormulas, source);
+      return;
+    case "call": {
+      const callee = node.callee;
+      const isLambdaMethod =
+        callee.kind === "member" &&
+        (callee.property === "filter" || callee.property === "map" || callee.property === "reduce");
+
+      validateExpressionIdentifiers(callee, known, declaredFormulas, source);
+
+      node.args.forEach((arg, index) => {
+        if (isLambdaMethod && index === 0) {
+          const scoped = new Set(known);
+          scoped.add("value");
+          scoped.add("index");
+
+          if (callee.kind === "member" && callee.property === "reduce") {
+            scoped.add("acc");
+          }
+
+          validateExpressionIdentifiers(arg, scoped, declaredFormulas, source);
+          return;
+        }
+
+        validateExpressionIdentifiers(arg, known, declaredFormulas, source);
+      });
+
+      return;
+    }
+  }
+}
+
+function validateCompiledFilterIdentifiers(
+  filter: CompiledFilter | undefined,
+  known: Set<string>,
+  declaredFormulas: Set<string>,
+  source: string,
+): void {
+  if (!filter) {
+    return;
+  }
+
+  if (filter.kind === "expr") {
+    validateExpressionIdentifiers(filter.expression, known, declaredFormulas, source);
+    return;
+  }
+
+  filter.and?.forEach((entry, index) =>
+    validateCompiledFilterIdentifiers(entry, known, declaredFormulas, `${source}.and[${index}]`),
+  );
+  filter.or?.forEach((entry, index) =>
+    validateCompiledFilterIdentifiers(entry, known, declaredFormulas, `${source}.or[${index}]`),
+  );
+  validateCompiledFilterIdentifiers(filter.not, known, declaredFormulas, `${source}.not`);
+}
+
+function validatePropertyRefIdentifiers(
+  property: string,
+  known: Set<string>,
+  declaredFormulas: Set<string>,
+  source: string,
+): void {
+  if (DOTTED_IDENTIFIER_RE.test(property)) {
+    validateExpressionIdentifiers(compileExpression(property), known, declaredFormulas, source);
+    return;
+  }
+
+  if (known.has(property)) {
+    return;
+  }
+
+  validateExpressionIdentifiers(compileExpression(property), known, declaredFormulas, source);
+}
+
+function validateStrictQuery(compiled: CompiledQuery, documents: IndexedDocument[], view: ViewSpec): void {
+  const declaredFormulas = new Set(Object.keys(compiled.spec.formulas ?? {}));
+  const known = new Set(KNOWN_IDENTIFIERS);
+
+  for (const document of documents) {
+    for (const key of Object.keys(document.note.frontmatter)) {
+      known.add(key);
+    }
+  }
+
+  const viewName = view.name;
+
+  validateCompiledFilterIdentifiers(compiled.globalFilter, known, declaredFormulas, "global filter");
+
+  const viewFilter = compiled.viewFilters.get(viewName);
+  validateCompiledFilterIdentifiers(viewFilter, known, declaredFormulas, `view "${viewName}" filter`);
+
+  for (const [name, expression] of compiled.formulas) {
+    validateExpressionIdentifiers(expression, known, declaredFormulas, `formula "${name}"`);
+  }
+
+  for (const [name, expression] of compiled.summaryFormulas) {
+    validateExpressionIdentifiers(expression, known, declaredFormulas, `summary "${name}"`);
+  }
+
+  for (const spec of view.sort ?? []) {
+    validatePropertyRefIdentifiers(spec.by, known, declaredFormulas, `sort key "${spec.by}"`);
+  }
+
+  if (view.groupBy) {
+    const property = typeof view.groupBy === "string" ? view.groupBy : view.groupBy.property;
+    validatePropertyRefIdentifiers(property, known, declaredFormulas, `group key "${property}"`);
+  }
+
+  const columns = (view.order && view.order.length > 0 ? view.order : undefined) ??
+    view.properties ??
+    compiled.spec.properties ??
+    [];
+
+  for (const column of columns) {
+    validatePropertyRefIdentifiers(column, known, declaredFormulas, `column "${column}"`);
+  }
 }
 
 function evaluateFormulas(
@@ -567,6 +731,10 @@ export function executeCompiledQuery(options: ExecuteQueryOptions): QueryResult 
   const view = getView(compiled.spec, options.view);
   const diagnostics: QueryDiagnostics = options.diagnostics ?? { errors: [], warnings: [] };
   const filesByPath = new Map<string, unknown>();
+
+  if (compiled.strict) {
+    validateStrictQuery(compiled, options.documents, view);
+  }
 
   for (const document of options.documents) {
     filesByPath.set(document.file.path, document.file);
