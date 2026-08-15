@@ -125,6 +125,7 @@ mdbasequery --yaml "views: [{ type: table, name: default }]" --no-strict
 | `--sort <prop:asc|desc>` | repeatable string | Sort criteria in flag-built mode. |
 | `--group-by <property>` | string | Group rows by one property in flag-built mode. |
 | `--limit <n>` | number | Limit row count in flag-built mode. |
+| `--version`, `-v` | flag | Show CLI version number. |
 | `--help`, `-h` | flag | Show CLI help text. |
 
 ### Output Formats

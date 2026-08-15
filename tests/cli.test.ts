@@ -91,4 +91,44 @@ describe("cli integration", () => {
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("unknown option: query");
   });
+
+  test("shows version with --version and -v", () => {
+    const res1 = runCli(["--version"]);
+    expect(res1.status).toBe(0);
+    expect(res1.stdout).toMatch(/^\d+\.\d+\.\d+/);
+
+    const res2 = runCli(["-v"]);
+    expect(res2.status).toBe(0);
+    expect(res2.stdout).toMatch(/^\d+\.\d+\.\d+/);
+  });
+
+  test("rejects query flags combined with --base or --yaml", () => {
+    const basePath = resolve(fixturesRoot, "queries/basic.base");
+    const result = runCli(["--base", basePath, "--filter", "score > 5"]);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("cannot combine --base/--yaml query definition with query flags");
+  });
+
+  test("--debug emits stats to stderr while keeping stdout valid JSON", () => {
+    const basePath = resolve(fixturesRoot, "queries/basic.base");
+    const result = runCli(["--base", basePath, "--dir", vaultDir, "--debug"]);
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toContain("[debug]");
+    expect(result.stderr).toContain("scanned:");
+    expect(JSON.parse(result.stdout).rows).toBeDefined();
+  });
+
+  test("--out automatically creates nested parent directories", () => {
+    const basePath = resolve(fixturesRoot, "queries/basic.base");
+    const tempDir = mkdtempSync(resolve(tmpdir(), "mdbasequery-"));
+    const nestedOut = resolve(tempDir, "deeply/nested/dir/out.json");
+
+    const result = runCli(["--base", basePath, "--dir", vaultDir, "--out", nestedOut]);
+
+    expect(result.status).toBe(0);
+    const content = readFileSync(nestedOut, "utf8");
+    expect(content).toContain("rows");
+  });
 });

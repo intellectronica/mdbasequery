@@ -1,4 +1,4 @@
-import { readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import type { RuntimeAdapter, RuntimeFileEntry } from "../types.js";
@@ -67,6 +67,10 @@ export const nodeAdapter: RuntimeAdapter = {
     return readFile(targetPath, "utf8");
   },
   async writeTextFile(targetPath: string, content: string) {
+    const dir = path.dirname(targetPath);
+    if (dir && dir !== ".") {
+      await mkdir(dir, { recursive: true });
+    }
     await writeFile(targetPath, content, "utf8");
   },
   async listFilesRecursive(targetPath: string) {

@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { readFileSync } from "node:fs";
+
 import { queryBase } from "./query.js";
 import { serializeResult } from "./core/serialize.js";
 import { detectRuntimeAdapter } from "./runtime-adapters/index.js";
@@ -23,6 +25,7 @@ interface CliOptions {
   groupBy?: string;
   limit?: number;
   help: boolean;
+  version: boolean;
 }
 
 const HELP_TEXT = `mdbasequery [options]
@@ -35,17 +38,30 @@ Core options:
   --format <fmt>              json|jsonl|yaml|csv|md (default json)
   --out <path>                write output to file
   --strict                    fail on unknown functions/properties (default true)
+  --no-strict                 disable strict mode for unknown symbols
   --include <glob>            include pattern (repeatable)
   --exclude <glob>            exclude pattern (repeatable)
-  --debug                     include diagnostics
+  --debug                     include diagnostics and stderr timings
+  --version, -v               show version number
+  --help, -h                  show help text
 
-Query options:
+Query options (flag mode only):
   --filter <expr>             repeatable filter expression
   --select <property>         repeatable selected column
   --sort <prop:asc|desc>      repeatable sort
   --group-by <property>       grouping property
   --limit <n>                 row limit
 `;
+
+function getVersion(): string {
+  try {
+    const pkgPath = new URL("../package.json", import.meta.url);
+    const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
+    return pkg.version ?? "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
+}
 
 function parseSort(input: string): SortSpec {
   const [property, directionRaw] = input.split(":");
@@ -99,6 +115,7 @@ function parseCli(argv: string[]): CliOptions {
     select: [],
     sort: [],
     help: false,
+    version: false,
   };
 
   const args = [...argv];
@@ -108,6 +125,11 @@ function parseCli(argv: string[]): CliOptions {
 
     if (token === "--help" || token === "-h") {
       output.help = true;
+      continue;
+    }
+
+    if (token === "--version" || token === "-v") {
+      output.version = true;
       continue;
     }
 
@@ -183,6 +205,20 @@ function parseCli(argv: string[]): CliOptions {
     }
   }
 
+  const hasSource = output.base !== undefined || output.yaml !== undefined;
+  const hasQueryFlags =
+    output.filters.length > 0 ||
+    output.select.length > 0 ||
+    output.sort.length > 0 ||
+    output.groupBy !== undefined ||
+    output.limit !== undefined;
+
+  if (hasSource && hasQueryFlags) {
+    throw new Error(
+      "cannot combine --base/--yaml query definition with query flags (--filter, --select, --sort, --group-by, --limit)",
+    );
+  }
+
   return output;
 }
 
@@ -191,6 +227,11 @@ async function run(): Promise<void> {
 
   if (options.help) {
     process.stdout.write(HELP_TEXT);
+    return;
+  }
+
+  if (options.version) {
+    process.stdout.write(`${getVersion()}\n`);
     return;
   }
 
@@ -209,6 +250,12 @@ async function run(): Promise<void> {
     exclude: options.exclude,
     debug: options.debug,
   });
+
+  if (options.debug) {
+    process.stderr.write(
+      `[debug] scanned: ${result.stats.scannedFiles}, matched: ${result.stats.matchedRows}, elapsed: ${result.stats.elapsedMs}ms\n`,
+    );
+  }
 
   const serialized = serializeResult(result, options.format);
 

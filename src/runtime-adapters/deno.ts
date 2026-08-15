@@ -17,6 +17,7 @@ interface DenoLike {
     isFile: boolean;
     isDirectory: boolean;
   }>;
+  mkdir(path: string, options?: { recursive?: boolean }): Promise<void>;
 }
 
 function getDeno(): DenoLike {
@@ -92,6 +93,10 @@ export const denoAdapter: RuntimeAdapter = {
     return getDeno().readTextFile(targetPath);
   },
   async writeTextFile(targetPath: string, content: string) {
+    const dir = path.dirname(targetPath);
+    if (dir && dir !== ".") {
+      await getDeno().mkdir(dir, { recursive: true });
+    }
     await getDeno().writeTextFile(targetPath, content);
   },
   async listFilesRecursive(targetPath: string) {
