@@ -184,7 +184,6 @@ export async function indexVault(options: VaultIndexOptions): Promise<VaultIndex
         links: metadata.links,
         embeds: metadata.embeds,
         backlinks: [] as string[],
-        raw,
       },
     } satisfies IndexedDocument;
   });

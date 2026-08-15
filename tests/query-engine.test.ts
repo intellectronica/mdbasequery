@@ -29,7 +29,6 @@ describe("query engine", () => {
         links: [] as string[],
         embeds: [] as string[],
         backlinks: [] as string[],
-        raw: "",
       },
     };
   }
@@ -472,7 +471,6 @@ views:
         links: [],
         embeds: [],
         backlinks: [],
-        raw: "",
       },
     });
 
@@ -517,7 +515,6 @@ views:
         links: [],
         embeds: [],
         backlinks: [],
-        raw: "",
       },
     });
 

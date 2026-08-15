@@ -115,7 +115,6 @@ function resolveThisFile(options: QueryBaseOptions, adapter: RuntimeAdapter, dir
     links: [],
     embeds: [],
     backlinks: [],
-    raw: "",
   };
 }
 

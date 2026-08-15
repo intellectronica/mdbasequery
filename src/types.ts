@@ -89,7 +89,6 @@ export interface FileRecord {
   links: string[];
   embeds: string[];
   backlinks: string[];
-  raw: string;
 }
 
 export interface NoteRecord {

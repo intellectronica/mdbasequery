@@ -945,7 +945,6 @@ function createSyntheticFile(pathLike: string): Record<string, unknown> {
     links: [],
     embeds: [],
     backlinks: [],
-    raw: "",
   };
 }
 

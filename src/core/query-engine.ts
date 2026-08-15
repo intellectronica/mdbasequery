@@ -820,7 +820,6 @@ export function executeCompiledQuery(options: ExecuteQueryOptions): QueryResult 
       links: [],
       embeds: [],
       backlinks: [],
-      raw: "",
     };
 
   const indexes = buildPathLookupIndexes(options.documents);
