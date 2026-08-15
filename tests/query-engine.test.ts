@@ -12,6 +12,39 @@ import { fixturesRoot } from "./helpers.js";
 describe("query engine", () => {
   const vaultDir = resolve(fixturesRoot, "vaults/basic");
 
+  function makeDocument(path: string, frontmatter: Record<string, unknown>) {
+    return {
+      note: { frontmatter },
+      file: {
+        name: path.split("/").pop() ?? path,
+        basename: (path.split("/").pop() ?? path).replace(/\.md$/, ""),
+        path,
+        folder: path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "",
+        ext: ".md",
+        size: 1,
+        ctime: new Date(0),
+        mtime: new Date(0),
+        properties: frontmatter,
+        tags: [] as string[],
+        links: [] as string[],
+        embeds: [] as string[],
+        backlinks: [] as string[],
+        raw: "",
+      },
+    };
+  }
+
+  function runWithDocuments(
+    specText: string,
+    documents: ReturnType<typeof makeDocument>[],
+    view = "default",
+    options: { strict?: boolean } = {},
+  ) {
+    const spec = parseBaseYaml(specText);
+    const compiled = compileQuery(spec, { strict: options.strict ?? true });
+    return executeCompiledQuery({ compiled, documents, view });
+  }
+
   test("applies global filter and formulas", async () => {
     const spec = parseBaseYaml(readFileSync(resolve(fixturesRoot, "queries/basic.base"), "utf8"));
     const compiled = compileQuery(spec);
@@ -333,26 +366,6 @@ views:
 
     const compiled = compileQuery(spec);
 
-    const makeDocument = (path: string, frontmatter: Record<string, unknown>) => ({
-      note: { frontmatter },
-      file: {
-        name: path.split("/").pop() ?? path,
-        basename: (path.split("/").pop() ?? path).replace(/\.md$/, ""),
-        path,
-        folder: path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "",
-        ext: ".md",
-        size: 1,
-        ctime: new Date(0),
-        mtime: new Date(0),
-        properties: frontmatter,
-        tags: [] as string[],
-        links: [] as string[],
-        embeds: [] as string[],
-        backlinks: [] as string[],
-        raw: "",
-      },
-    });
-
     const result = executeCompiledQuery({
       compiled,
       documents: [
@@ -552,26 +565,6 @@ views:
 
     const compiled = compileQuery(spec);
 
-    const makeDocument = (path: string, frontmatter: Record<string, unknown>) => ({
-      note: { frontmatter },
-      file: {
-        name: path.split("/").pop() ?? path,
-        basename: (path.split("/").pop() ?? path).replace(/\.md$/, ""),
-        path,
-        folder: path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "",
-        ext: ".md",
-        size: 1,
-        ctime: new Date(0),
-        mtime: new Date(0),
-        properties: frontmatter,
-        tags: [] as string[],
-        links: [] as string[],
-        embeds: [] as string[],
-        backlinks: [] as string[],
-        raw: "",
-      },
-    });
-
     expect(() =>
       executeCompiledQuery({
         compiled,
@@ -582,5 +575,90 @@ views:
         view: "default",
       }),
     ).not.toThrow();
+  });
+
+  test("sort places empty values last and mirrors direction", () => {
+    const documents = [
+      makeDocument("a.md", { title: "A", score: 5 }),
+      makeDocument("b.md", { title: "B" }),
+      makeDocument("c.md", { title: "C", score: 3 }),
+    ];
+
+    const asc = runWithDocuments(
+      `
+views:
+  - type: table
+    name: default
+    sort:
+      - score:asc
+`.trim(),
+      documents,
+    );
+    const desc = runWithDocuments(
+      `
+views:
+  - type: table
+    name: default
+    sort:
+      - score:desc
+`.trim(),
+      documents,
+    );
+
+    expect(asc.rows.map((row) => row.projected.title)).toEqual(["C", "A", "B"]);
+    expect(desc.rows.map((row) => row.projected.title)).toEqual(["A", "C", "B"]);
+  });
+
+  test("sort compares numeric-string columns numerically", () => {
+    const documents = [
+      makeDocument("a.md", { title: "A", priority: "10" }),
+      makeDocument("b.md", { title: "B", priority: "9" }),
+      makeDocument("c.md", { title: "C", priority: "2" }),
+    ];
+
+    const result = runWithDocuments(
+      `
+views:
+  - type: table
+    name: default
+    sort:
+      - priority:asc
+`.trim(),
+      documents,
+    );
+
+    expect(result.rows.map((row) => row.projected.title)).toEqual(["C", "B", "A"]);
+  });
+
+  test("sort compares date columns chronologically", () => {
+    const documents = [
+      makeDocument("a.md", { title: "A", created: "2024-03-01" }),
+      makeDocument("b.md", { title: "B", created: "2024-01-01" }),
+      makeDocument("c.md", { title: "C", created: "2024-02-01" }),
+    ];
+
+    const asc = runWithDocuments(
+      `
+views:
+  - type: table
+    name: default
+    sort:
+      - created:asc
+`.trim(),
+      documents,
+    );
+    const desc = runWithDocuments(
+      `
+views:
+  - type: table
+    name: default
+    sort:
+      - created:desc
+`.trim(),
+      documents,
+    );
+
+    expect(asc.rows.map((row) => row.projected.title)).toEqual(["B", "C", "A"]);
+    expect(desc.rows.map((row) => row.projected.title)).toEqual(["A", "C", "B"]);
   });
 });

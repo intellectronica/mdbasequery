@@ -72,24 +72,43 @@ function evaluatePropertyRef(
   return evaluateExpression(property, withEvalContext(row, filesByPath), { strict });
 }
 
-function toComparable(value: unknown): string | number {
-  if (value instanceof Date) {
-    return value.getTime();
-  }
+function isEmptySortValue(value: unknown): boolean {
+  return value === null || value === undefined || value === "";
+}
 
+function isNumericSortValue(value: unknown): boolean {
   if (typeof value === "number") {
-    return value;
+    return Number.isFinite(value);
   }
 
-  if (typeof value === "boolean") {
-    return value ? 1 : 0;
+  if (typeof value === "string" && value.trim() !== "") {
+    return Number.isFinite(Number(value));
   }
 
-  if (value === null || value === undefined) {
-    return "";
+  return false;
+}
+
+function numericSortValue(value: unknown): number {
+  return typeof value === "number" ? value : Number(value);
+}
+
+function compareSortValues(left: unknown, right: unknown): number {
+  const leftNumeric = isNumericSortValue(left);
+  const rightNumeric = isNumericSortValue(right);
+
+  if (leftNumeric && rightNumeric) {
+    return numericSortValue(left) - numericSortValue(right);
   }
 
-  return String(value);
+  if (left instanceof Date && right instanceof Date) {
+    return left.getTime() - right.getTime();
+  }
+
+  if (typeof left === "boolean" && typeof right === "boolean") {
+    return Number(left) - Number(right);
+  }
+
+  return String(left).localeCompare(String(right));
 }
 
 function discoverFormulaDeps(expression: string): string[] {
@@ -418,15 +437,20 @@ function stableSort(
 
   const sorted = [...rows].sort((left, right) => {
     for (const spec of order) {
-      const leftValue = toComparable(evaluatePropertyRef(spec.by, left, strict, filesByPath));
-      const rightValue = toComparable(evaluatePropertyRef(spec.by, right, strict, filesByPath));
+      const leftValue = evaluatePropertyRef(spec.by, left, strict, filesByPath);
+      const rightValue = evaluatePropertyRef(spec.by, right, strict, filesByPath);
 
-      if (leftValue < rightValue) {
-        return spec.direction === "desc" ? 1 : -1;
+      const leftEmpty = isEmptySortValue(leftValue);
+      const rightEmpty = isEmptySortValue(rightValue);
+
+      if (leftEmpty !== rightEmpty) {
+        return leftEmpty ? 1 : -1;
       }
 
-      if (leftValue > rightValue) {
-        return spec.direction === "desc" ? -1 : 1;
+      const comparison = compareSortValues(leftValue, rightValue);
+
+      if (comparison !== 0) {
+        return spec.direction === "desc" ? -comparison : comparison;
       }
     }
 
@@ -767,7 +791,7 @@ export function executeCompiledQuery(options: ExecuteQueryOptions): QueryResult 
       note: document.note.frontmatter,
       file: document.file,
       formula: {},
-      this: thisFile,
+      this: thisFile as unknown as Record<string, unknown>,
       projected: {},
     };
 

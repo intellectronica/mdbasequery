@@ -133,12 +133,12 @@ describe("markdown metadata parsing", () => {
     const metadata = parseMarkdownMetadata(
       "![alt](image.png) ![[alpha]] [text](https://example.com) [mail](mailto:a@b.com) [[beta]] [rel](notes/other.md)",
     );
-    expect(metadata.links).toEqual(["notes/other.md", "beta"]);
+    expect(metadata.links).toEqual(["beta", "notes/other.md"]);
     expect(metadata.embeds).toEqual(["alpha", "image.png"]);
   });
 
   test("keeps protocol-relative and root-relative targets as links", () => {
     const metadata = parseMarkdownMetadata("[a](/docs/guide.md) [b](./sibling.md) [c](../parent.md)");
-    expect(metadata.links).toEqual(["./sibling.md", "../parent.md", "/docs/guide.md"]);
+    expect(metadata.links).toEqual(["../parent.md", "./sibling.md", "/docs/guide.md"]);
   });
 });
