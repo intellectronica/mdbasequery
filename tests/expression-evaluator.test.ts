@@ -120,4 +120,51 @@ describe("expression evaluator", () => {
     expect(evaluateExpression("created.format('YYYY-MM-DD')", context, { strict: true })).toBe("2024-01-10");
     expect(evaluateExpression("created.year", context, { strict: true })).toBe(2024);
   });
+
+  test("date.format() handles Moment tokens", () => {
+    const expr = (format: string) =>
+      evaluateExpression(`date("2025-01-04 15:06:07").format("${format}")`, {}, { strict: true });
+
+    expect(expr("YYYY-MM-DD")).toBe("2025-01-04");
+    expect(expr("YY")).toBe("25");
+    expect(expr("M-D")).toBe("1-4");
+    expect(expr("MM-DD")).toBe("01-04");
+    expect(expr("MMM")).toBe("Jan");
+    expect(expr("MMMM")).toBe("January");
+    expect(expr("ddd")).toBe("Sat");
+    expect(expr("dddd")).toBe("Saturday");
+    expect(expr("dd")).toBe("Sa");
+    expect(expr("Do")).toBe("4th");
+    expect(expr("HH:mm")).toBe("15:06");
+    expect(expr("hh:mm A")).toBe("03:06 PM");
+    expect(expr("h:m a")).toBe("3:6 pm");
+    expect(expr("ss.SSS")).toBe("07.000");
+    expect(
+      evaluateExpression(
+        "created.format('ss.SSS')",
+        { note: { created: new Date(2025, 0, 4, 15, 6, 7, 8) } },
+        { strict: true },
+      ),
+    ).toBe("07.008");
+    expect(expr("[on] YYYY")).toBe("on 2025");
+    expect(expr("[[bracket]]")).toBe("[bracket]");
+    expect(expr("x")).toBe(String(new Date(2025, 0, 4, 15, 6, 7).getTime()));
+  });
+
+  test("date.format() ordinal suffixes follow Moment rules", () => {
+    const expr = (day: number) =>
+      evaluateExpression(`date("2025-01-${String(day).padStart(2, "0")} 00:00:00").format("Do")`, {}, { strict: true });
+
+    expect(expr(1)).toBe("1st");
+    expect(expr(2)).toBe("2nd");
+    expect(expr(3)).toBe("3rd");
+    expect(expr(4)).toBe("4th");
+    expect(expr(11)).toBe("11th");
+    expect(expr(12)).toBe("12th");
+    expect(expr(13)).toBe("13th");
+    expect(expr(21)).toBe("21st");
+    expect(expr(22)).toBe("22nd");
+    expect(expr(23)).toBe("23rd");
+    expect(expr(31)).toBe("31st");
+  });
 });

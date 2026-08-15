@@ -643,15 +643,131 @@ function stringifyValue(value: unknown): string {
   }
 }
 
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+const MONTH_SHORT = MONTH_NAMES.map((name) => name.slice(0, 3));
+
+const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+const DAY_SHORT = DAY_NAMES.map((name) => name.slice(0, 3));
+
+const DAY_TWO_CHAR = DAY_NAMES.map((name) => name.slice(0, 2));
+
+function ordinalSuffix(value: number): string {
+  const remainder = value % 100;
+
+  if (remainder >= 11 && remainder <= 13) {
+    return "th";
+  }
+
+  switch (value % 10) {
+    case 1:
+      return "st";
+    case 2:
+      return "nd";
+    case 3:
+      return "rd";
+    default:
+      return "th";
+  }
+}
+
+function timezoneOffset(date: Date, separator: string): string {
+  const offset = -date.getTimezoneOffset();
+  const sign = offset >= 0 ? "+" : "-";
+  const absolute = Math.abs(offset);
+  const hours = padNumber(Math.trunc(absolute / 60));
+  const minutes = padNumber(absolute % 60);
+  return `${sign}${hours}${separator}${minutes}`;
+}
+
+type DateFormatToken = [pattern: string, render: (date: Date) => string];
+
+const DATE_FORMAT_TOKENS: DateFormatToken[] = [
+  ["YYYY", (date) => String(date.getFullYear())],
+  ["YY", (date) => String(date.getFullYear()).slice(-2)],
+  ["MMMM", (date) => MONTH_NAMES[date.getMonth()]],
+  ["MMM", (date) => MONTH_SHORT[date.getMonth()]],
+  ["MM", (date) => padNumber(date.getMonth() + 1)],
+  ["Mo", (date) => `${date.getMonth() + 1}${ordinalSuffix(date.getMonth() + 1)}`],
+  ["M", (date) => String(date.getMonth() + 1)],
+  ["dddd", (date) => DAY_NAMES[date.getDay()]],
+  ["ddd", (date) => DAY_SHORT[date.getDay()]],
+  ["dd", (date) => DAY_TWO_CHAR[date.getDay()]],
+  ["DD", (date) => padNumber(date.getDate())],
+  ["Do", (date) => `${date.getDate()}${ordinalSuffix(date.getDate())}`],
+  ["D", (date) => String(date.getDate())],
+  ["d", (date) => String(date.getDay())],
+  ["HH", (date) => padNumber(date.getHours())],
+  ["H", (date) => String(date.getHours())],
+  ["hh", (date) => padNumber((date.getHours() % 12) || 12)],
+  ["h", (date) => String((date.getHours() % 12) || 12)],
+  ["mm", (date) => padNumber(date.getMinutes())],
+  ["m", (date) => String(date.getMinutes())],
+  ["ss", (date) => padNumber(date.getSeconds())],
+  ["s", (date) => String(date.getSeconds())],
+  ["SSS", (date) => padNumber(date.getMilliseconds(), 3)],
+  ["SS", (date) => padNumber(date.getMilliseconds(), 2)],
+  ["S", (date) => String(Math.trunc(date.getMilliseconds() / 100))],
+  ["A", (date) => (date.getHours() < 12 ? "AM" : "PM")],
+  ["a", (date) => (date.getHours() < 12 ? "am" : "pm")],
+  ["ZZ", (date) => timezoneOffset(date, "")],
+  ["Z", (date) => timezoneOffset(date, ":")],
+  ["X", (date) => String(Math.floor(date.getTime() / 1000))],
+  ["x", (date) => String(date.getTime())],
+];
+
 function formatDate(date: Date, format: string): string {
-  return format
-    .replaceAll("YYYY", String(date.getFullYear()))
-    .replaceAll("MM", padNumber(date.getMonth() + 1))
-    .replaceAll("DD", padNumber(date.getDate()))
-    .replaceAll("HH", padNumber(date.getHours()))
-    .replaceAll("mm", padNumber(date.getMinutes()))
-    .replaceAll("ss", padNumber(date.getSeconds()))
-    .replaceAll("SSS", padNumber(date.getMilliseconds(), 3));
+  let output = "";
+
+  for (let index = 0; index < format.length; ) {
+    const char = format[index];
+
+    if (char === "[") {
+      const end = format.indexOf("]", index);
+
+      if (end === -1) {
+        output += char;
+        index += 1;
+        continue;
+      }
+
+      output += format.slice(index + 1, end).replaceAll("[[", "[");
+      index = end + 1;
+      continue;
+    }
+
+    let matched = false;
+
+    for (const [pattern, render] of DATE_FORMAT_TOKENS) {
+      if (format.startsWith(pattern, index)) {
+        output += render(date);
+        index += pattern.length;
+        matched = true;
+        break;
+      }
+    }
+
+    if (!matched) {
+      output += char;
+      index += 1;
+    }
+  }
+
+  return output;
 }
 
 function relativeDate(date: Date): string {
