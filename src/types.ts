@@ -44,6 +44,7 @@ export interface QuerySpec {
   propertyConfigs?: Record<string, PropertyConfig>;
   summaries?: Record<string, string>;
   views: ViewSpec[];
+  warnings?: string[];
 }
 
 export interface QueryDiagnostics {

@@ -87,4 +87,40 @@ views:
       Date: { displayName: "Due Date" },
     });
   });
+
+  test("emits warnings on unknown top-level keys and unknown view types", () => {
+    const spec = parseBaseYaml(`
+formuals:
+  bad: score * 2
+views:
+  - type: custom_gallery
+    name: default
+`.trim());
+
+    expect(spec.warnings).toBeDefined();
+    expect(spec.warnings).toContain('unknown top-level key "formuals" in query');
+    expect(spec.warnings).toContain('unknown view type "custom_gallery" in views[0]');
+  });
+
+  test("rejects non-string formula and summary expressions", () => {
+    expect(() =>
+      parseBaseYaml(`
+formulas:
+  score: 42
+views:
+  - type: table
+    name: default
+`.trim()),
+    ).toThrow(/formulas\.score must be a string expression/);
+
+    expect(() =>
+      parseBaseYaml(`
+summaries:
+  avg: 123
+views:
+  - type: table
+    name: default
+`.trim()),
+    ).toThrow(/summaries\.avg must be a string expression/);
+  });
 });

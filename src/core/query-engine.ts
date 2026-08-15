@@ -1,4 +1,10 @@
-import { GLOBAL_FUNCTION_NAMES, compileExpression, evaluateAst } from "./expression/index.js";
+import {
+  ExpressionSyntaxError,
+  GLOBAL_FUNCTION_NAMES,
+  compileExpression,
+  evaluateAst,
+  formatExpressionError,
+} from "./expression/index.js";
 import { buildPathLookupIndexes } from "./vault-index.js";
 
 import type { EvaluationContext, ExpressionNode } from "./expression/index.js";
@@ -282,7 +288,20 @@ function partitionFormulaOrder(
   return { preFilterOrder, postFilterOrder };
 }
 
-function compileFilter(filter?: FilterSpec): CompiledFilter | undefined {
+function compileExpressionWithRole(expression: string, role: string): ExpressionNode {
+  try {
+    return compileExpression(expression);
+  } catch (error) {
+    if (error instanceof ExpressionSyntaxError) {
+      throw new Error(formatExpressionError(error.message, expression, role, error.index));
+    }
+
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(formatExpressionError(message, expression, role));
+  }
+}
+
+function compileFilter(filter?: FilterSpec, role = "filter"): CompiledFilter | undefined {
   if (!filter) {
     return undefined;
   }
@@ -290,15 +309,19 @@ function compileFilter(filter?: FilterSpec): CompiledFilter | undefined {
   if (typeof filter === "string") {
     return {
       kind: "expr",
-      expression: compileExpression(filter),
+      expression: compileExpressionWithRole(filter, role),
     };
   }
 
   return {
     kind: "tree",
-    and: filter.and?.map((entry) => compileFilter(entry)).filter((entry): entry is CompiledFilter => !!entry),
-    or: filter.or?.map((entry) => compileFilter(entry)).filter((entry): entry is CompiledFilter => !!entry),
-    not: compileFilter(filter.not),
+    and: filter.and
+      ?.map((entry, index) => compileFilter(entry, `${role}.and[${index}]`))
+      .filter((entry): entry is CompiledFilter => !!entry),
+    or: filter.or
+      ?.map((entry, index) => compileFilter(entry, `${role}.or[${index}]`))
+      .filter((entry): entry is CompiledFilter => !!entry),
+    not: compileFilter(filter.not, `${role}.not`),
   };
 }
 
@@ -853,25 +876,25 @@ export function compileQuery(spec: QuerySpec, options: CompileQueryOptions = {})
   const compiledFormulas = new Map<string, ExpressionNode>();
 
   for (const [name, expression] of Object.entries(formulas)) {
-    compiledFormulas.set(name, compileExpression(expression));
+    compiledFormulas.set(name, compileExpressionWithRole(expression, `formula "${name}"`));
   }
 
   const viewFilters = new Map<string, CompiledFilter | undefined>();
 
   for (const view of spec.views) {
-    viewFilters.set(view.name, compileFilter(view.filters));
+    viewFilters.set(view.name, compileFilter(view.filters, `view "${view.name}" filter`));
   }
 
   const summaryFormulas = new Map<string, ExpressionNode>();
 
   for (const [name, expression] of Object.entries(spec.summaries ?? {})) {
-    summaryFormulas.set(name, compileExpression(expression));
+    summaryFormulas.set(name, compileExpressionWithRole(expression, `summary "${name}"`));
   }
 
   return {
     spec,
     strict,
-    globalFilter: compileFilter(spec.filters),
+    globalFilter: compileFilter(spec.filters, "global filter"),
     viewFilters,
     formulas: compiledFormulas,
     formulaOrder,
@@ -892,6 +915,15 @@ export function executeCompiledQuery(options: ExecuteQueryOptions): QueryResult 
   const { compiled } = options;
   const view = getView(compiled.spec, options.view);
   const diagnostics: QueryDiagnostics = options.diagnostics ?? { errors: [], warnings: [] };
+
+  if (compiled.spec.warnings && compiled.spec.warnings.length > 0) {
+    for (const warning of compiled.spec.warnings) {
+      if (!diagnostics.warnings.includes(warning)) {
+        diagnostics.warnings.push(warning);
+      }
+    }
+  }
+
   const filesByPath = new Map<string, unknown>();
 
   if (compiled.strict) {

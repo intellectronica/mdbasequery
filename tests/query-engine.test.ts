@@ -742,4 +742,16 @@ views:
     expect(result.stats.returnedRows).toBe(2);
     expect(result.rows).toHaveLength(2);
   });
+
+  test("expression errors include role, source text, and caret position", () => {
+    const spec = parseBaseYaml(`
+formulas:
+  broken: 1 + * 2
+views:
+  - type: table
+    name: default
+`.trim());
+
+    expect(() => compileQuery(spec)).toThrow(/error in formula "broken":\n  1 \+ \* 2\n {6}\^/);
+  });
 });

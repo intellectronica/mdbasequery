@@ -64,6 +64,20 @@ export class ExpressionSyntaxError extends Error {
   }
 }
 
+export function formatExpressionError(
+  message: string,
+  source: string,
+  role: string,
+  index?: number,
+): string {
+  if (index !== undefined && index >= 0 && index <= source.length) {
+    const pointer = " ".repeat(index) + "^";
+    return `error in ${role}:\n  ${source}\n  ${pointer}\n${message}`;
+  }
+
+  return `error in ${role} (${source}): ${message}`;
+}
+
 class Parser {
   private readonly input: string;
   private offset: number;

@@ -192,7 +192,15 @@ function normalizeGroupBy(
   return undefined;
 }
 
-function normalizeView(value: unknown, index: number, issues: string[]): ViewSpec | undefined {
+const KNOWN_TOP_LEVEL_KEYS = new Set(["filters", "formulas", "properties", "summaries", "views"]);
+const STANDARD_VIEW_TYPES = new Set(["table", "cards", "list", "map"]);
+
+function normalizeView(
+  value: unknown,
+  index: number,
+  issues: string[],
+  warnings: string[],
+): ViewSpec | undefined {
   const path = `views[${index}]`;
 
   if (!isPlainObject(value)) {
@@ -202,6 +210,8 @@ function normalizeView(value: unknown, index: number, issues: string[]): ViewSpe
 
   if (typeof value.type !== "string") {
     issues.push(`${path}.type must be a string`);
+  } else if (!STANDARD_VIEW_TYPES.has(value.type)) {
+    warnings.push(`unknown view type "${value.type}" in ${path}`);
   }
 
   if (typeof value.name !== "string") {
@@ -224,6 +234,12 @@ function normalizeView(value: unknown, index: number, issues: string[]): ViewSpe
   const summaries = value.summaries;
   if (summaries !== undefined && !isPlainObject(summaries)) {
     issues.push(`${path}.summaries must be an object`);
+  } else if (isPlainObject(summaries)) {
+    for (const [k, v] of Object.entries(summaries)) {
+      if (typeof v !== "string") {
+        issues.push(`${path}.summaries.${k} must be a string summary name`);
+      }
+    }
   }
 
   const properties = value.properties;
@@ -259,9 +275,16 @@ function normalizeView(value: unknown, index: number, issues: string[]): ViewSpe
 
 export function validateAndNormalizeQuery(value: unknown): QuerySpec {
   const issues: string[] = [];
+  const warnings: string[] = [];
 
   if (!isPlainObject(value)) {
     throw new QueryValidationError(["query must be a YAML object"]);
+  }
+
+  for (const key of Object.keys(value)) {
+    if (!KNOWN_TOP_LEVEL_KEYS.has(key)) {
+      warnings.push(`unknown top-level key "${key}" in query`);
+    }
   }
 
   const viewsRaw = value.views;
@@ -273,6 +296,12 @@ export function validateAndNormalizeQuery(value: unknown): QuerySpec {
   const formulasRaw = value.formulas;
   if (formulasRaw !== undefined && !isPlainObject(formulasRaw)) {
     issues.push("formulas must be an object");
+  } else if (isPlainObject(formulasRaw)) {
+    for (const [k, v] of Object.entries(formulasRaw)) {
+      if (typeof v !== "string") {
+        issues.push(`formulas.${k} must be a string expression`);
+      }
+    }
   }
 
   const propertiesRaw = value.properties;
@@ -283,11 +312,17 @@ export function validateAndNormalizeQuery(value: unknown): QuerySpec {
   const summariesRaw = value.summaries;
   if (summariesRaw !== undefined && !isPlainObject(summariesRaw)) {
     issues.push("summaries must be an object");
+  } else if (isPlainObject(summariesRaw)) {
+    for (const [k, v] of Object.entries(summariesRaw)) {
+      if (typeof v !== "string") {
+        issues.push(`summaries.${k} must be a string expression`);
+      }
+    }
   }
 
   const views = Array.isArray(viewsRaw)
     ? viewsRaw
-        .map((entry, index) => normalizeView(entry, index, issues))
+        .map((entry, index) => normalizeView(entry, index, issues, warnings))
         .filter((entry): entry is ViewSpec => entry !== undefined)
     : [];
 
@@ -320,6 +355,7 @@ export function validateAndNormalizeQuery(value: unknown): QuerySpec {
         )
       : undefined,
     views,
+    warnings: warnings.length > 0 ? warnings : undefined,
   };
 
   if (issues.length > 0) {
