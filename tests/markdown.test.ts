@@ -90,4 +90,42 @@ describe("markdown metadata parsing", () => {
     expect(metadata.frontmatter.title).toBe("Notes");
     expect(metadata.frontmatter.count).toBe(3);
   });
+
+  test("does not harvest tags from fenced code blocks", () => {
+    const metadata = parseMarkdownMetadata(
+      [
+        "---",
+        "title: Code",
+        "---",
+        "Real tag #project/core",
+        "",
+        "```bash",
+        "#codetag-here",
+        "echo '#another'",
+        "```",
+        "",
+        "~~~",
+        "#tildetag",
+        "~~~",
+      ].join("\n"),
+    );
+    expect(metadata.tags).toEqual(["project/core"]);
+  });
+
+  test("does not harvest tags from inline code spans", () => {
+    const metadata = parseMarkdownMetadata("Body with `#inline-tag` and `` #double `#nested`` real #tag1");
+    expect(metadata.tags).toEqual(["tag1"]);
+  });
+
+  test("does not harvest tags from frontmatter values outside the tags key", () => {
+    const metadata = parseMarkdownMetadata(
+      "---\ntitle: A #hash-literal\ndesc: '#quoted too'\n---\nbody #real",
+    );
+    expect(metadata.tags).toEqual(["real"]);
+  });
+
+  test("keeps line-start #tags without a space (Obsidian behaviour)", () => {
+    const metadata = parseMarkdownMetadata("#HeadingLikeTag\n\ntext #real/sub\n");
+    expect(metadata.tags).toEqual(["HeadingLikeTag", "real/sub"]);
+  });
 });

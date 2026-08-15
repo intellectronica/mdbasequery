@@ -86,11 +86,92 @@ export function extractFrontmatter(raw: string): Record<string, unknown> {
   }
 }
 
+function blankInlineCode(input: string): string {
+  let output = "";
+  let index = 0;
+
+  while (index < input.length) {
+    const char = input[index];
+
+    if (char !== "`") {
+      output += char;
+      index += 1;
+      continue;
+    }
+
+    let run = 0;
+
+    while (input[index + run] === "`") {
+      run += 1;
+    }
+
+    const closing = input.indexOf("`".repeat(run), index + run);
+
+    if (closing === -1) {
+      output += char;
+      index += 1;
+      continue;
+    }
+
+    output += " ".repeat(closing + run - index);
+    index = closing + run;
+  }
+
+  return output;
+}
+
+function stripCodeRegions(raw: string): string {
+  const lines = raw.split("\n");
+  const blanked = new Array<boolean>(lines.length).fill(false);
+
+  if (lines[0]?.startsWith("---")) {
+    for (let index = 1; index < lines.length; index += 1) {
+      blanked[index] = true;
+
+      if (/^---[ \t]*$/.test(lines[index])) {
+        break;
+      }
+    }
+  }
+
+  let fenceChar: string | null = null;
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const fenceMatch = /^[ \t]{0,3}(`{3,}|~{3,})/.exec(line);
+
+    if (fenceChar) {
+      blanked[index] = true;
+      const closer = new RegExp(`^[ \\t]{0,3}${fenceChar === "`" ? "`+" : "~+"}[ \\t]*$`);
+
+      if (closer.test(line)) {
+        fenceChar = null;
+      }
+
+      continue;
+    }
+
+    if (fenceMatch) {
+      const char = fenceMatch[1][0];
+      const rest = line.slice(fenceMatch[0].length);
+      blanked[index] = true;
+      fenceChar = new RegExp(`${char}{3,}`).test(rest) ? null : char;
+    }
+  }
+
+  const blankedLines = lines
+    .map((line, index) => (blanked[index] ? " ".repeat(line.length) : line))
+    .join("\n");
+
+  return blankInlineCode(blankedLines);
+}
+
 export function extractTags(raw: string): string[] {
   const tagPattern = /(^|\s)#([A-Za-z0-9/_-]+)/g;
   const output: string[] = [];
+  const sanitized = stripCodeRegions(raw);
 
-  for (const match of raw.matchAll(tagPattern)) {
+  for (const match of sanitized.matchAll(tagPattern)) {
     if (match[2]) {
       output.push(match[2]);
     }
