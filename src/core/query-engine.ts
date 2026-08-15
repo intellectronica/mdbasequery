@@ -1,4 +1,5 @@
 import { GLOBAL_FUNCTION_NAMES, compileExpression, evaluateAst, evaluateExpression } from "./expression/index.js";
+import { buildPathLookupIndexes } from "./vault-index.js";
 
 import type { ExpressionNode } from "./expression/index.js";
 import type {
@@ -780,8 +781,14 @@ export function executeCompiledQuery(options: ExecuteQueryOptions): QueryResult 
       raw: "",
     };
 
-  for (const document of options.documents) {
-    filesByPath.set(document.file.path, document.file);
+  const indexes = buildPathLookupIndexes(options.documents);
+
+  for (const [path, document] of indexes.byPath) {
+    filesByPath.set(path, document.file);
+  }
+
+  for (const [shortName, document] of indexes.byShortName) {
+    filesByPath.set(shortName, document.file);
   }
 
   const rows: QueryRow[] = [];

@@ -70,6 +70,52 @@ function sortEntries(entries: RuntimeFileEntry[]): RuntimeFileEntry[] {
   return [...entries].sort((left, right) => left.path.localeCompare(right.path));
 }
 
+export interface PathLookupIndexes {
+  byPath: Map<string, IndexedDocument>;
+  byShortName: Map<string, IndexedDocument>;
+}
+
+export function buildPathLookupIndexes(documents: IndexedDocument[]): PathLookupIndexes {
+  const byPath = new Map<string, IndexedDocument>();
+  const shortNameCounts = new Map<string, string[]>();
+
+  for (const document of documents) {
+    const path = document.file.path;
+    byPath.set(path, document);
+
+    for (const shortName of [document.file.name, document.file.basename, `${document.file.basename}.md`]) {
+      const paths = shortNameCounts.get(shortName) ?? [];
+      paths.push(path);
+      shortNameCounts.set(shortName, paths);
+    }
+  }
+
+  const byShortName = new Map<string, IndexedDocument>();
+
+  for (const document of documents) {
+    for (const shortName of [document.file.name, document.file.basename, `${document.file.basename}.md`]) {
+      if ((shortNameCounts.get(shortName)?.length ?? 0) === 1) {
+        byShortName.set(shortName, document);
+      }
+    }
+  }
+
+  return { byPath, byShortName };
+}
+
+export function resolveLinkTarget(
+  link: string,
+  indexes: PathLookupIndexes,
+): IndexedDocument | undefined {
+  const normalized = normalizeLinkTarget(link);
+
+  return (
+    indexes.byPath.get(normalized) ??
+    indexes.byShortName.get(normalized) ??
+    (normalized.endsWith(".md") ? undefined : indexes.byShortName.get(`${normalized}.md`))
+  );
+}
+
 export async function indexVault(options: VaultIndexOptions): Promise<VaultIndexResult> {
   const entries = sortEntries(await options.adapter.listFilesRecursive(options.rootDir));
 
@@ -115,21 +161,11 @@ export async function indexVault(options: VaultIndexOptions): Promise<VaultIndex
     });
   }
 
-  const pathLookup = new Map<string, IndexedDocument>();
-
-  for (const document of documents) {
-    pathLookup.set(normalizeLinkTarget(document.file.path), document);
-    pathLookup.set(normalizeLinkTarget(document.file.name), document);
-    pathLookup.set(normalizeLinkTarget(document.file.basename), document);
-    pathLookup.set(normalizeLinkTarget(`${document.file.basename}.md`), document);
-  }
+  const indexes = buildPathLookupIndexes(documents);
 
   for (const document of documents) {
     for (const link of document.file.links) {
-      const normalized = normalizeLinkTarget(link);
-      const target =
-        pathLookup.get(normalized) ??
-        (normalized.endsWith(".md") ? undefined : pathLookup.get(`${normalized}.md`));
+      const target = resolveLinkTarget(link, indexes);
 
       if (!target) {
         continue;

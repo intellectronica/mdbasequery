@@ -60,4 +60,36 @@ describe("vault indexing", () => {
     const paths = indexed.documents.map((entry) => entry.file.path);
     expect(paths).toEqual(["alpha.md", "beta.md", "nested/gamma.md"]);
   });
+
+  test("backlinks resolve unique basenames", async () => {
+    const linksRoot = resolve(fixturesRoot, "vaults/links");
+    const indexed = await indexVault({
+      rootDir: linksRoot,
+      include: ["**/*.md"],
+      exclude: [],
+      adapter: nodeAdapter,
+    });
+
+    const byPath = new Map(indexed.documents.map((doc) => [doc.file.path, doc]));
+
+    expect(byPath.get("beta.md")?.file.backlinks).toEqual(["d.md"]);
+    expect(byPath.get("a/alpha.md")?.file.backlinks).toEqual(["c.md"]);
+  });
+
+  test("ambiguous basenames produce no backlink", async () => {
+    const linksRoot = resolve(fixturesRoot, "vaults/links");
+    const indexed = await indexVault({
+      rootDir: linksRoot,
+      include: ["**/*.md"],
+      exclude: [],
+      adapter: nodeAdapter,
+    });
+
+    const byPath = new Map(indexed.documents.map((doc) => [doc.file.path, doc]));
+
+    // e.md links to ambiguous [[alpha]], which matches neither a/alpha nor b/alpha
+    expect(byPath.get("a/alpha.md")?.file.backlinks).not.toContain("e.md");
+    expect(byPath.get("b/alpha.md")?.file.backlinks).not.toContain("e.md");
+    expect(byPath.get("b/alpha.md")?.file.backlinks).toEqual([]);
+  });
 });
