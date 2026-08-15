@@ -55,6 +55,35 @@ describe("query engine", () => {
     expect(result.groups?.length).toBe(2);
   });
 
+  test("group rows contain only projected values (no file/note/raw internals)", async () => {
+    const spec = parseBaseYaml(readFileSync(resolve(fixturesRoot, "queries/grouped.base"), "utf8"));
+    const compiled = compileQuery(spec);
+    const indexed = await indexVault({
+      rootDir: vaultDir,
+      include: ["**/*.md"],
+      exclude: [],
+      adapter: nodeAdapter,
+    });
+
+    const result = executeCompiledQuery({
+      compiled,
+      documents: indexed.documents,
+      view: "grouped",
+    });
+
+    expect(result.groups).toBeDefined();
+    for (const group of result.groups ?? []) {
+      for (const row of group.rows) {
+        expect(row).not.toHaveProperty("file");
+        expect(row).not.toHaveProperty("note");
+        expect(row).not.toHaveProperty("this");
+        expect(row).not.toHaveProperty("formula");
+        expect(row).not.toHaveProperty("raw");
+        expect(Object.keys(row)).toEqual(result.columns);
+      }
+    }
+  });
+
   test("and/or formula produces operand values, not booleans (grouped.base band)", async () => {
     const spec = parseBaseYaml(readFileSync(resolve(fixturesRoot, "queries/grouped.base"), "utf8"));
     const compiled = compileQuery(spec);

@@ -243,7 +243,7 @@ console.log(first.rows.length, second.rows.length);
 
 - `rows`: row contexts with `note`, `file`, `formula`, `this`, and `projected` fields.
 - `columns`: projected column order.
-- `groups?`: grouped rows when grouping is active.
+- `groups?`: grouped rows when grouping is active. Group rows are projected records (same shape as `rows[]` entries); internal row data (`file`, `note`, `this`, `formula`, `raw`) is never exposed in serialised output.
 - `summaries?`: computed summary values.
 - `stats`: scan/match timing and counts.
 - `diagnostics`: warnings and errors.

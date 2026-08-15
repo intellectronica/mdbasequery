@@ -440,7 +440,7 @@ function groupRows(
   view: ViewSpec,
   strict: boolean,
   filesByPath: Map<string, unknown>,
-): QueryGroup[] | undefined {
+): Array<{ key: unknown; rows: QueryRow[] }> | undefined {
   if (!view.groupBy) {
     return undefined;
   }
@@ -448,7 +448,7 @@ function groupRows(
   const groupProperty = typeof view.groupBy === "string" ? view.groupBy : view.groupBy.property;
   const groupDirection = typeof view.groupBy === "string" ? "asc" : view.groupBy.direction;
 
-  const groups = new Map<string, QueryGroup>();
+  const groups = new Map<string, { key: unknown; rows: QueryRow[] }>();
 
   for (const row of rows) {
     const key = evaluatePropertyRef(groupProperty, row, strict, filesByPath);
@@ -788,7 +788,10 @@ export function executeCompiledQuery(options: ExecuteQueryOptions): QueryResult 
     row.projected = projectRow(row, columns, compiled.strict, filesByPath);
   }
 
-  const groups = groupRows(limited, view, compiled.strict, filesByPath);
+  const groups = groupRows(limited, view, compiled.strict, filesByPath)?.map((group) => ({
+    key: group.key,
+    rows: group.rows.map((row) => row.projected),
+  }));
   const summaries = computeSummaries(limited, compiled.spec, view, compiled);
 
   return {

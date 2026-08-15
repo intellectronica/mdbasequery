@@ -54,7 +54,7 @@ export interface QueryStats {
 
 export interface QueryGroup {
   key: unknown;
-  rows: QueryRow[];
+  rows: Record<string, unknown>[];
 }
 
 export interface QueryResult {
