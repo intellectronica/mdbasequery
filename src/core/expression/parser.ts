@@ -416,6 +416,15 @@ class Parser {
             case "0":
               value += "\0";
               continue;
+            case "\\":
+              value += "\\";
+              continue;
+            case '"':
+              value += '"';
+              continue;
+            case "'":
+              value += "'";
+              continue;
             case "u":
               if (this.input[this.offset] === "{") {
                 const closeBrace = this.input.indexOf("}", this.offset);
@@ -456,7 +465,7 @@ class Parser {
               continue;
             }
             default:
-              value += next;
+              value += `\\${next}`;
               continue;
           }
         }
