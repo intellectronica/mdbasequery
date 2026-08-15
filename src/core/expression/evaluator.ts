@@ -892,6 +892,27 @@ function resolveMember(
     }
   }
 
+  if (isDurationValue(object)) {
+    const totalMs = durationToMilliseconds(object);
+    switch (property) {
+      case "days":
+        return totalMs / (24 * 60 * 60 * 1_000);
+      case "hours":
+        return totalMs / (60 * 60 * 1_000);
+      case "minutes":
+        return totalMs / (60 * 1_000);
+      case "seconds":
+        return totalMs / 1_000;
+      case "milliseconds":
+        return totalMs;
+      default:
+        if (options.strict) {
+          throw new Error(`unknown property: ${property}`);
+        }
+        return undefined;
+    }
+  }
+
   if (isFileLike(object) && property === "file") {
     return object;
   }
@@ -1468,12 +1489,22 @@ const listMethods: Record<string, MethodFunction> = {
 };
 
 const linkMethods: Record<string, MethodFunction> = {
-  asFile(target, _argNodes, context): unknown {
+  asFile(target, _argNodes, context, options): unknown {
     if (!isLinkValue(target)) {
       return undefined;
     }
 
-    return resolveFileArg(target.path, context);
+    const found = lookupFile(target.path, context);
+
+    if (found) {
+      return found;
+    }
+
+    if (options.strict) {
+      return null;
+    }
+
+    return createSyntheticFile(target.path);
   },
   linksTo(target, argNodes, context, options): boolean {
     if (!isLinkValue(target)) {

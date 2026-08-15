@@ -754,4 +754,29 @@ views:
 
     expect(() => compileQuery(spec)).toThrow(/error in formula "broken":\n  1 \+ \* 2\n {6}\^/);
   });
+
+  test("frontmatter wikilinks compare equal to link objects and serialize cleanly", () => {
+    const documents = [
+      makeDocument("a.md", {
+        title: "A",
+        author: { __kind: "link", path: "Jane Doe", display: undefined },
+      }),
+    ];
+
+    const specText = `
+filters: author == link("Jane Doe")
+views:
+  - type: table
+    name: default
+    properties:
+      - title
+      - author
+`.trim();
+
+    const result = runWithDocuments(specText, documents);
+
+    expect(result.rows).toHaveLength(1);
+    const csv = serializeResult(result, "csv");
+    expect(csv).toContain("[[Jane Doe]]");
+  });
 });

@@ -84,6 +84,19 @@ describe("expression evaluator", () => {
     expect(evaluateExpression("file.hasProperty('Type')", context, { strict: true })).toBeTrue();
   });
 
+  test("supports duration numeric properties days/hours/minutes/seconds/milliseconds", () => {
+    expect(evaluateExpression("duration('2d').days", {}, { strict: true })).toBe(2);
+    expect(evaluateExpression("duration('48h').days", {}, { strict: true })).toBe(2);
+    expect(evaluateExpression("duration('90m').hours", {}, { strict: true })).toBe(1.5);
+    expect(evaluateExpression("duration('30s').seconds", {}, { strict: true })).toBe(30);
+    expect(evaluateExpression("duration('500ms').milliseconds", {}, { strict: true })).toBe(500);
+  });
+
+  test("link.asFile() returns null in strict mode when file is missing", () => {
+    expect(evaluateExpression("link('nonexistent').asFile()", {}, { strict: true })).toBeNull();
+    expect(evaluateExpression("link('nonexistent').asFile()", {}, { strict: false })).toBeTypeOf("object");
+  });
+
   test("uses if() lazily", () => {
     const result = evaluateExpression("if(true, 'ok', missingIdentifier)", {}, { strict: true });
     expect(result).toBe("ok");

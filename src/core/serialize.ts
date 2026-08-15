@@ -16,6 +16,11 @@ function toDisplayValue(value: unknown): string {
   }
 
   if (typeof value === "object") {
+    if ("__kind" in value && (value as { __kind: string }).__kind === "link") {
+      const link = value as { __kind: "link"; path: string; display?: string };
+      return link.display ? `[[${link.path}|${link.display}]]` : `[[${link.path}]]`;
+    }
+
     return JSON.stringify(value);
   }
 

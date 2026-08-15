@@ -141,4 +141,25 @@ describe("markdown metadata parsing", () => {
     const metadata = parseMarkdownMetadata("[a](/docs/guide.md) [b](./sibling.md) [c](../parent.md)");
     expect(metadata.links).toEqual(["../parent.md", "./sibling.md", "/docs/guide.md"]);
   });
+
+  test("coerces frontmatter wikilinks to Link values and includes them in file.links", () => {
+    const metadata = parseMarkdownMetadata(
+      "---\nauthor: '[[Jane Doe]]'\nreviewer: '[[John Smith|Johnny]]'\nrefs:\n  - '[[alpha]]'\n  - '[[beta]]'\n---\nbody",
+    );
+
+    expect(metadata.frontmatter.author).toEqual({
+      __kind: "link",
+      path: "Jane Doe",
+      display: undefined,
+    });
+    expect(metadata.frontmatter.reviewer).toEqual({
+      __kind: "link",
+      path: "John Smith",
+      display: "Johnny",
+    });
+    expect(metadata.links).toContain("Jane Doe");
+    expect(metadata.links).toContain("John Smith");
+    expect(metadata.links).toContain("alpha");
+    expect(metadata.links).toContain("beta");
+  });
 });

@@ -102,13 +102,11 @@ When asked to create commits in this repository:
 
 - `this` is a file-like record. With `--base`/`basePath` it is a synthetic record of the base file itself (path/folder resolved relative to the vault root; no file read); in `--yaml`/flag/library mode without a base path it is an empty record at the vault root. This diverges from Obsidian embed-location semantics but supports the documented patterns (`this.file.folder`, `file.hasLink(this.file)`, `author == this`).
 - `file.folder` is supported and resolves to the vault-relative parent directory (`""` for root-level notes).
-- `file.backlinks` IS implemented: computed during indexing from resolved `file.links` targets (path, name, basename, and basename-with-`.md` lookups). Known limitation: basename collisions across folders resolve arbitrarily; ambiguity policy tracked in #14.
-- CSV serialisation uses the selected/declared column list as the canonical header order.
-- View `order` is treated as projected column order; row sorting is driven by `sort`.
-- When no explicit columns are configured, projected columns are inferred from matched note frontmatter keys (with `file.name` first).
-- `--yaml`/`yaml` accepts inline YAML text only; file paths must use `--base`/`basePath`.
-- `random()` is deliberately not implemented (deterministic-output engine); divergence from the Obsidian function list tracked in #24.
-- Non-standard extension globals beyond the Obsidian function surface: `sum(values)`, `avg(values)`, `count(values)`, `contains(container, needle)`. Docs example `values.mean()` is not yet supported; tracked in #7.
+- `file.backlinks` is computed during indexing from resolved `file.links` targets using unambiguous basename / exact path matching.
+- `random()` is deliberately not implemented for deterministic query evaluation.
+- Non-standard extension globals beyond the Obsidian function surface: `sum(values)`, `avg(values)`, `count(values)`, `contains(container, needle)`. List stat methods `values.mean()`, `values.sum()`, `values.min()`, `values.max()` are supported per official docs.
+- Frontmatter wikilinks (`[[target]]`, `[[target|display]]`) are coerced to Link objects at index time and included in `file.links`. `link.asFile()` returns `null` in strict mode when target does not resolve.
+- Duration values support numeric property access (`duration.days`, `duration.hours`, `duration.minutes`, `duration.seconds`, `duration.milliseconds`).
 - Frontmatter date properties are coerced to `Date` at index time when they match `YYYY-MM-DD` or `YYYY-MM-DD[T ]HH:mm(:ss(.SSS)?)(offset)?`. Invalid date-like strings and `YYYY-MM` month-granularity values remain strings.
 
 ## Improvement Plan (tracked in GitHub issues)

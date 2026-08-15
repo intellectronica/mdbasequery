@@ -13,6 +13,7 @@ function uniqueSorted(values: string[]): string[] {
 
 const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const DATE_TIME_PATTERN = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:[Zz]|[+-]\d{2}:?\d{2})?$/;
+const WIKILINK_VALUE_PATTERN = /^\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|([^\]]+))?\]\]$/;
 
 function coerceDateValue(value: unknown): unknown {
   if (typeof value !== "string") {
@@ -36,22 +37,68 @@ function coerceDateValue(value: unknown): unknown {
   return parsed;
 }
 
-function coerceDates(value: unknown): unknown {
+function coerceFrontmatterValue(value: unknown): unknown {
+  if (typeof value === "string") {
+    const linkMatch = WIKILINK_VALUE_PATTERN.exec(value.trim());
+
+    if (linkMatch) {
+      return {
+        __kind: "link",
+        path: linkMatch[1].trim(),
+        display: linkMatch[2]?.trim(),
+      };
+    }
+
+    return coerceDateValue(value);
+  }
+
+  return value;
+}
+
+function coerceFrontmatter(value: unknown): unknown {
   if (value instanceof Date) {
     return value;
   }
 
+  if (typeof value === "object" && value !== null && "__kind" in value) {
+    return value;
+  }
+
   if (Array.isArray(value)) {
-    return value.map(coerceDates);
+    return value.map(coerceFrontmatter);
   }
 
   if (typeof value === "object" && value !== null) {
     return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>).map(([key, entry]) => [key, coerceDates(entry)]),
+      Object.entries(value as Record<string, unknown>).map(([key, entry]) => [key, coerceFrontmatter(entry)]),
     );
   }
 
-  return coerceDateValue(value);
+  return coerceFrontmatterValue(value);
+}
+
+function extractLinksFromFrontmatter(frontmatter: Record<string, unknown>): string[] {
+  const output: string[] = [];
+
+  function walk(val: unknown) {
+    if (
+      typeof val === "object" &&
+      val !== null &&
+      "__kind" in val &&
+      (val as { __kind: unknown }).__kind === "link" &&
+      "path" in val &&
+      typeof (val as { path: unknown }).path === "string"
+    ) {
+      output.push((val as { path: string }).path);
+    } else if (Array.isArray(val)) {
+      val.forEach(walk);
+    } else if (typeof val === "object" && val !== null && !(val instanceof Date)) {
+      Object.values(val as Record<string, unknown>).forEach(walk);
+    }
+  }
+
+  walk(frontmatter);
+  return output;
 }
 
 export function extractFrontmatter(raw: string): Record<string, unknown> {
@@ -77,7 +124,7 @@ export function extractFrontmatter(raw: string): Record<string, unknown> {
     const parsed = parseYaml(yamlBody);
 
     if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
-      return coerceDates(parsed) as Record<string, unknown>;
+      return coerceFrontmatter(parsed) as Record<string, unknown>;
     }
 
     return {};
@@ -250,7 +297,7 @@ export function parseMarkdownMetadata(raw: string): MarkdownMetadata {
   return {
     frontmatter,
     tags: uniqueSorted([...extractTags(raw), ...extractTagsFromFrontmatter(frontmatter)].map(normalizeTag)),
-    links: extractLinks(raw),
+    links: uniqueSorted([...extractLinks(raw), ...extractLinksFromFrontmatter(frontmatter)]),
     embeds: extractEmbeds(raw),
   };
 }
