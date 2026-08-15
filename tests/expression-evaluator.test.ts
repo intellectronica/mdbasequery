@@ -121,6 +121,19 @@ describe("expression evaluator", () => {
     expect(evaluateExpression("created.year", context, { strict: true })).toBe(2024);
   });
 
+  test("list stat methods sum/mean/min/max", () => {
+    expect(evaluateExpression("[1,2,3].sum()", {}, { strict: true })).toBe(6);
+    expect(evaluateExpression("[1,2,3].mean()", {}, { strict: true })).toBe(2);
+    expect(evaluateExpression("[1,2,3].min()", {}, { strict: true })).toBe(1);
+    expect(evaluateExpression("[1,2,3].max()", {}, { strict: true })).toBe(3);
+    expect(evaluateExpression("[1, null, 3].mean()", {}, { strict: true })).toBe(2);
+    expect(evaluateExpression("[].sum()", {}, { strict: true })).toBe(0);
+    expect(evaluateExpression("[].mean()", {}, { strict: true })).toBe(0);
+    expect(evaluateExpression("[].min()", {}, { strict: true })).toBeNull();
+    expect(evaluateExpression("[].max()", {}, { strict: true })).toBeNull();
+    expect(evaluateExpression("[1,2,3].mean().round(3)", {}, { strict: true })).toBe(2);
+  });
+
   test("date.format() handles Moment tokens", () => {
     const expr = (format: string) =>
       evaluateExpression(`date("2025-01-04 15:06:07").format("${format}")`, {}, { strict: true });

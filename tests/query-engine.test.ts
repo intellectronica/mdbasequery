@@ -392,6 +392,37 @@ views:
     expect(result.rows).toHaveLength(0);
   });
 
+  test("custom summary formula uses values.mean() per official docs", async () => {
+    const spec = parseBaseYaml(`
+summaries:
+  customAverage: 'values.mean().round(3)'
+views:
+  - type: table
+    name: default
+    order:
+      - title
+      - score
+    summaries:
+      score: customAverage
+`.trim());
+
+    const compiled = compileQuery(spec);
+    const indexed = await indexVault({
+      rootDir: vaultDir,
+      include: ["**/*.md"],
+      exclude: [],
+      adapter: nodeAdapter,
+    });
+
+    const result = executeCompiledQuery({
+      compiled,
+      documents: indexed.documents,
+      view: "default",
+    });
+
+    expect(result.summaries?.score).toBe(6.667);
+  });
+
   test("frontmatter date properties are Dates: comparable and formatable", async () => {
     const spec = parseBaseYaml(`
 filters: created < date("2024-02-01")

@@ -141,6 +141,22 @@ function toDate(value: unknown): Date {
   return new Date(String(value));
 }
 
+function toNumericList(target: unknown, options: EvaluateOptions): number[] {
+  if (!Array.isArray(target)) {
+    return [];
+  }
+
+  return target
+    .map((entry) => {
+      if (entry === null || entry === undefined || entry === "") {
+        return Number.NaN;
+      }
+
+      return toNumber(entry, options);
+    })
+    .filter((entry) => Number.isFinite(entry));
+}
+
 function tryParseDate(value: unknown): Date | undefined {
   if (value instanceof Date) {
     return value;
@@ -1316,6 +1332,36 @@ const listMethods: Record<string, MethodFunction> = {
     const list = Array.isArray(target) ? target : [];
     const needles = evaluateArgNodes(argNodes, context, options);
     return needles.some((needle) => list.some((entry) => equalsValues(entry, needle, options)));
+  },
+  mean(target, _argNodes, _context, options): number {
+    const numbers = toNumericList(target, options);
+
+    if (numbers.length === 0) {
+      return 0;
+    }
+
+    return numbers.reduce((total, entry) => total + entry, 0) / numbers.length;
+  },
+  sum(target, _argNodes, _context, options): number {
+    return toNumericList(target, options).reduce((total, entry) => total + entry, 0);
+  },
+  min(target, _argNodes, _context, options): number | null {
+    const numbers = toNumericList(target, options);
+
+    if (numbers.length === 0) {
+      return null;
+    }
+
+    return Math.min(...numbers);
+  },
+  max(target, _argNodes, _context, options): number | null {
+    const numbers = toNumericList(target, options);
+
+    if (numbers.length === 0) {
+      return null;
+    }
+
+    return Math.max(...numbers);
   },
   filter(target, argNodes, context, options): unknown[] {
     const list = Array.isArray(target) ? target : [];
