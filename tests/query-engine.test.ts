@@ -5,6 +5,7 @@ import { describe, expect, test } from "bun:test";
 
 import { parseBaseYaml } from "../src/core/schema.js";
 import { compileQuery, executeCompiledQuery } from "../src/core/query-engine.js";
+import { serializeResult } from "../src/core/serialize.js";
 import { indexVault } from "../src/core/vault-index.js";
 import { nodeAdapter } from "../src/runtime-adapters/node.js";
 import { fixturesRoot } from "./helpers.js";
@@ -684,5 +685,38 @@ views:
     expect(result.rows[0].projected.title).toBe("Matched");
     expect(result.rows[0].projected["formula.heavy"]).toBe("5.00");
     expect(result.diagnostics.errors).toHaveLength(0);
+  });
+
+  test("uses properties.displayName for CSV/MD headers and columnLabels", () => {
+    const documents = [
+      makeDocument("a.md", { title: "Alpha", status: "open" }),
+    ];
+
+    const specText = `
+properties:
+  title:
+    displayName: Document Title
+  status:
+    displayName: Current Status
+views:
+  - type: table
+    name: default
+    properties:
+      - title
+      - status
+`.trim();
+
+    const result = runWithDocuments(specText, documents);
+
+    expect(result.columnLabels).toEqual({
+      title: "Document Title",
+      status: "Current Status",
+    });
+
+    const csv = serializeResult(result, "csv");
+    expect(csv.startsWith("Document Title,Current Status")).toBeTrue();
+
+    const md = serializeResult(result, "md");
+    expect(md).toContain("| Document Title | Current Status |");
   });
 });

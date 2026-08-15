@@ -3,6 +3,7 @@ import { parse as parseYaml } from "yaml";
 import type {
   FilterSpec,
   GroupBySpec,
+  PropertyConfig,
   QuerySpec,
   SortDirection,
   SortSpec,
@@ -304,6 +305,13 @@ export function validateAndNormalizeQuery(value: unknown): QuerySpec {
       : isPlainObject(propertiesRaw)
         ? Object.keys(propertiesRaw)
         : undefined,
+    propertyConfigs: isPlainObject(propertiesRaw)
+      ? Object.fromEntries(
+          Object.entries(propertiesRaw)
+            .filter(([, v]) => isPlainObject(v))
+            .map(([k, v]) => [k, v as PropertyConfig]),
+        )
+      : undefined,
     summaries: isPlainObject(summariesRaw)
       ? Object.fromEntries(
           Object.entries(summariesRaw)

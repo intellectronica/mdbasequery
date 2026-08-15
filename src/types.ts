@@ -20,6 +20,11 @@ export interface GroupBySpec {
   direction: SortDirection;
 }
 
+export interface PropertyConfig {
+  displayName?: string;
+  [key: string]: unknown;
+}
+
 export interface ViewSpec {
   type: string;
   name: string;
@@ -36,6 +41,7 @@ export interface QuerySpec {
   filters?: FilterSpec;
   formulas?: Record<string, string>;
   properties?: string[];
+  propertyConfigs?: Record<string, PropertyConfig>;
   summaries?: Record<string, string>;
   views: ViewSpec[];
 }
@@ -60,6 +66,7 @@ export interface QueryGroup {
 export interface QueryResult {
   rows: QueryRow[];
   columns: string[];
+  columnLabels?: Record<string, string>;
   groups?: QueryGroup[];
   summaries?: Record<string, unknown>;
   stats: QueryStats;

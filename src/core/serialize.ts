@@ -30,10 +30,14 @@ function escapeCsv(value: string): string {
   return `"${value.replaceAll('"', '""')}"`;
 }
 
+function getColumnHeader(column: string, result: QueryResult): string {
+  return result.columnLabels?.[column] ?? column;
+}
+
 function serializeCsv(result: QueryResult): string {
   const rows = normalizedRows(result);
   const columns = result.columns;
-  const lines: string[] = [columns.map(escapeCsv).join(",")];
+  const lines: string[] = [columns.map((col) => escapeCsv(getColumnHeader(col, result))).join(",")];
 
   for (const row of rows) {
     lines.push(
@@ -50,7 +54,8 @@ function serializeCsv(result: QueryResult): string {
 function serializeMarkdownTable(result: QueryResult): string {
   const rows = normalizedRows(result);
   const columns = result.columns;
-  const header = `| ${columns.join(" | ")} |`;
+  const headers = columns.map((col) => getColumnHeader(col, result));
+  const header = `| ${headers.join(" | ")} |`;
   const divider = `| ${columns.map(() => "---").join(" | ")} |`;
   const body = rows.map((row) => {
     const cells = columns.map((column) => toDisplayValue(row[column]).replaceAll("|", "\\|"));
@@ -66,6 +71,7 @@ export function serializeResult(result: QueryResult, format: OutputFormat): stri
       {
         rows: normalizedRows(result),
         columns: result.columns,
+        columnLabels: result.columnLabels,
         groups: result.groups,
         summaries: result.summaries,
         stats: result.stats,
@@ -84,6 +90,7 @@ export function serializeResult(result: QueryResult, format: OutputFormat): stri
     return `${stringifyYaml({
       rows: normalizedRows(result),
       columns: result.columns,
+      columnLabels: result.columnLabels,
       groups: result.groups,
       summaries: result.summaries,
       stats: result.stats,

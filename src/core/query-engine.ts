@@ -999,9 +999,20 @@ export function executeCompiledQuery(options: ExecuteQueryOptions): QueryResult 
   }));
   const summaries = computeSummaries(limited, compiled.spec, view, compiled);
 
+  const columnLabels: Record<string, string> = {};
+  const configs = compiled.spec.propertyConfigs ?? {};
+
+  for (const column of columns) {
+    const config = configs[column];
+    if (config?.displayName && typeof config.displayName === "string") {
+      columnLabels[column] = config.displayName;
+    }
+  }
+
   return {
     rows: limited,
     columns,
+    columnLabels: Object.keys(columnLabels).length > 0 ? columnLabels : undefined,
     groups,
     summaries,
     stats: {

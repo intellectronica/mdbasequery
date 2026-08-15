@@ -69,18 +69,22 @@ views:
     expect(spec.views[0].sort).toEqual([{ by: "file.name", direction: "asc" }]);
   });
 
-  test("accepts Obsidian properties object and keeps property keys", () => {
+  test("accepts Obsidian properties object and keeps property keys and propertyConfigs", () => {
     const spec = parseBaseYaml(`
 properties:
   Type:
-    displayName: Type
+    displayName: Item Type
   Date:
-    displayName: Date
+    displayName: Due Date
 views:
   - type: table
     name: default
 `.trim());
 
     expect(spec.properties).toEqual(["Type", "Date"]);
+    expect(spec.propertyConfigs).toEqual({
+      Type: { displayName: "Item Type" },
+      Date: { displayName: "Due Date" },
+    });
   });
 });
