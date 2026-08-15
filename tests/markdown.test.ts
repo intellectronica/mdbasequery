@@ -128,4 +128,17 @@ describe("markdown metadata parsing", () => {
     const metadata = parseMarkdownMetadata("#HeadingLikeTag\n\ntext #real/sub\n");
     expect(metadata.tags).toEqual(["HeadingLikeTag", "real/sub"]);
   });
+
+  test("excludes embeds and external URLs from file.links", () => {
+    const metadata = parseMarkdownMetadata(
+      "![alt](image.png) ![[alpha]] [text](https://example.com) [mail](mailto:a@b.com) [[beta]] [rel](notes/other.md)",
+    );
+    expect(metadata.links).toEqual(["notes/other.md", "beta"]);
+    expect(metadata.embeds).toEqual(["alpha", "image.png"]);
+  });
+
+  test("keeps protocol-relative and root-relative targets as links", () => {
+    const metadata = parseMarkdownMetadata("[a](/docs/guide.md) [b](./sibling.md) [c](../parent.md)");
+    expect(metadata.links).toEqual(["./sibling.md", "../parent.md", "/docs/guide.md"]);
+  });
 });

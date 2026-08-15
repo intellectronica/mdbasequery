@@ -198,19 +198,25 @@ function normalizeTag(tag: string): string {
   return tag.startsWith("#") ? tag.slice(1) : tag;
 }
 
+const EXTERNAL_TARGET_PATTERN = /^[a-z][a-z0-9+.-]*:/i;
+
+function isExternalTarget(target: string): boolean {
+  return EXTERNAL_TARGET_PATTERN.test(target.trim());
+}
+
 export function extractLinks(raw: string): string[] {
   const output: string[] = [];
 
-  const wikiLinkPattern = /\[\[([^\]|#]+)(?:#[^\]]+)?(?:\|[^\]]+)?\]\]/g;
+  const wikiLinkPattern = /(?<!!)\[\[([^\]|#]+)(?:#[^\]]+)?(?:\|[^\]]+)?\]\]/g;
   for (const match of raw.matchAll(wikiLinkPattern)) {
     if (match[1]) {
       output.push(match[1].trim());
     }
   }
 
-  const markdownLinkPattern = /\[[^\]]+\]\(([^)]+)\)/g;
+  const markdownLinkPattern = /(?<!!)\[[^\]]+\]\(([^)]+)\)/g;
   for (const match of raw.matchAll(markdownLinkPattern)) {
-    if (match[1]) {
+    if (match[1] && !isExternalTarget(match[1])) {
       output.push(match[1].trim());
     }
   }
