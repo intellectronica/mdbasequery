@@ -106,4 +106,18 @@ describe("expression evaluator", () => {
     expect(evaluateExpression("0 || 'fallback'", {}, { strict: true })).toBe("fallback");
     expect(evaluateExpression("'x' && 'y'", {}, { strict: true })).toBe("y");
   });
+
+  test("compares date values against date strings", () => {
+    expect(evaluateExpression("'2024-01-01' < date('2025-01-01')", {}, { strict: true })).toBeTrue();
+    expect(evaluateExpression("date('2025-01-01') > '2024-06-15 08:30:00'", {}, { strict: true })).toBeTrue();
+    expect(evaluateExpression("date('2024-01-10') == '2024-01-10'", {}, { strict: true })).toBeTrue();
+    expect(evaluateExpression("'2024-01-10' == date('2024-01-10')", {}, { strict: true })).toBeTrue();
+    expect(evaluateExpression("'not-a-date' < date('2025-01-01')", {}, { strict: true })).toBeFalse();
+  });
+
+  test("calls date methods on date-typed values", () => {
+    const context = { note: { created: new Date("2024-01-10T00:00:00.000Z") } };
+    expect(evaluateExpression("created.format('YYYY-MM-DD')", context, { strict: true })).toBe("2024-01-10");
+    expect(evaluateExpression("created.year", context, { strict: true })).toBe(2024);
+  });
 });

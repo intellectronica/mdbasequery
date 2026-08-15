@@ -11,6 +11,49 @@ function uniqueSorted(values: string[]): string[] {
   return [...new Set(values)].sort((left, right) => left.localeCompare(right));
 }
 
+const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const DATE_TIME_PATTERN = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:[Zz]|[+-]\d{2}:?\d{2})?$/;
+
+function coerceDateValue(value: unknown): unknown {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  if (!DATE_ONLY_PATTERN.test(value) && !DATE_TIME_PATTERN.test(value)) {
+    return value;
+  }
+
+  const parsed = new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return value;
+  }
+
+  if (DATE_ONLY_PATTERN.test(value) && parsed.toISOString().slice(0, 10) !== value) {
+    return value;
+  }
+
+  return parsed;
+}
+
+function coerceDates(value: unknown): unknown {
+  if (value instanceof Date) {
+    return value;
+  }
+
+  if (Array.isArray(value)) {
+    return value.map(coerceDates);
+  }
+
+  if (typeof value === "object" && value !== null) {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, entry]) => [key, coerceDates(entry)]),
+    );
+  }
+
+  return coerceDateValue(value);
+}
+
 export function extractFrontmatter(raw: string): Record<string, unknown> {
   const normalized = raw.replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
 
@@ -34,7 +77,7 @@ export function extractFrontmatter(raw: string): Record<string, unknown> {
     const parsed = parseYaml(yamlBody);
 
     if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
-      return parsed as Record<string, unknown>;
+      return coerceDates(parsed) as Record<string, unknown>;
     }
 
     return {};

@@ -141,6 +141,24 @@ function toDate(value: unknown): Date {
   return new Date(String(value));
 }
 
+function tryParseDate(value: unknown): Date | undefined {
+  if (value instanceof Date) {
+    return value;
+  }
+
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const parsed = new Date(value);
+
+  if (Number.isNaN(parsed.getTime())) {
+    return undefined;
+  }
+
+  return parsed;
+}
+
 function inferType(value: unknown): string {
   if (isNullish(value)) {
     return "null";
@@ -493,6 +511,15 @@ function compareValues(left: unknown, right: unknown, options: EvaluateOptions):
     return left.getTime() - right.getTime();
   }
 
+  if (left instanceof Date || right instanceof Date) {
+    const leftDate = tryParseDate(left);
+    const rightDate = tryParseDate(right);
+
+    if (leftDate && rightDate) {
+      return leftDate.getTime() - rightDate.getTime();
+    }
+  }
+
   if (isDurationValue(left) || isDurationValue(right)) {
     return toNumber(left, options) - toNumber(right, options);
   }
@@ -531,6 +558,15 @@ function resolveComparablePath(value: unknown): string | undefined {
 function equalsValues(left: unknown, right: unknown, options: EvaluateOptions): boolean {
   if (left instanceof Date && right instanceof Date) {
     return left.getTime() === right.getTime();
+  }
+
+  if (left instanceof Date || right instanceof Date) {
+    const leftDate = tryParseDate(left);
+    const rightDate = tryParseDate(right);
+
+    if (leftDate && rightDate) {
+      return leftDate.getTime() === rightDate.getTime();
+    }
   }
 
   const leftPath = resolveComparablePath(left);

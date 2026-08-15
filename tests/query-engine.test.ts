@@ -363,6 +363,36 @@ views:
     expect(result.rows).toHaveLength(0);
   });
 
+  test("frontmatter date properties are Dates: comparable and formatable", async () => {
+    const spec = parseBaseYaml(`
+filters: created < date("2024-02-01")
+views:
+  - type: table
+    name: dates
+    properties:
+      - title
+      - created
+`.trim());
+
+    const compiled = compileQuery(spec);
+    const indexed = await indexVault({
+      rootDir: vaultDir,
+      include: ["**/*.md"],
+      exclude: [],
+      adapter: nodeAdapter,
+    });
+
+    const result = executeCompiledQuery({
+      compiled,
+      documents: indexed.documents,
+      view: "dates",
+    });
+
+    expect(result.rows).toHaveLength(1);
+    expect(result.rows[0].projected.title).toBe("Alpha");
+    expect(result.rows[0].note.created).toBeInstanceOf(Date);
+  });
+
   test("strict mode allows lambda-scoped value/index/acc in list methods", async () => {
     const spec = parseBaseYaml(`
 filters: tags.filter(value == "urgent").length > 0

@@ -44,4 +44,50 @@ describe("markdown metadata parsing", () => {
     );
     expect(metadata.tags).toEqual(["frontmatter-tag", "inline", "nested/child"]);
   });
+
+  test("coerces YYYY-MM-DD frontmatter values to Date", () => {
+    const metadata = parseMarkdownMetadata("---\ncreated: 2024-01-10\n---\nbody");
+    expect(metadata.frontmatter.created).toBeInstanceOf(Date);
+    expect((metadata.frontmatter.created as Date).toISOString()).toBe("2024-01-10T00:00:00.000Z");
+  });
+
+  test("coerces YYYY-MM-DD HH:mm:ss frontmatter values to Date preserving time", () => {
+    const metadata = parseMarkdownMetadata("---\ndue: 2024-06-15 08:30:00\n---\nbody");
+    const due = metadata.frontmatter.due as Date;
+    expect(due).toBeInstanceOf(Date);
+    expect(due.getFullYear()).toBe(2024);
+    expect(due.getMonth()).toBe(5);
+    expect(due.getDate()).toBe(15);
+    expect(due.getHours()).toBe(8);
+    expect(due.getMinutes()).toBe(30);
+  });
+
+  test("coerces ISO datetime with T separator and offset", () => {
+    const metadata = parseMarkdownMetadata("---\nat: 2024-01-10T08:30:00Z\n---\nbody");
+    expect((metadata.frontmatter.at as Date).toISOString()).toBe("2024-01-10T08:30:00.000Z");
+  });
+
+  test("coerces dates inside nested lists and objects", () => {
+    const metadata = parseMarkdownMetadata(
+      "---\nhistory:\n  - 2024-01-01\n  - 2024-02-02\nmeta:\n  start: 2024-03-03\n---\nbody",
+    );
+    expect(metadata.frontmatter.history).toHaveLength(2);
+    expect(metadata.frontmatter.history[0]).toBeInstanceOf(Date);
+    expect((metadata.frontmatter.meta as { start: unknown }).start).toBeInstanceOf(Date);
+  });
+
+  test("keeps invalid and ambiguous date-like strings as strings", () => {
+    const metadata = parseMarkdownMetadata(
+      "---\nbad: 2024-13-45\nyear_month: 2024-01\nversion: 2024-01-10-alpha\n---\nbody",
+    );
+    expect(metadata.frontmatter.bad).toBe("2024-13-45");
+    expect(metadata.frontmatter.year_month).toBe("2024-01");
+    expect(metadata.frontmatter.version).toBe("2024-01-10-alpha");
+  });
+
+  test("keeps ordinary strings and numbers untouched", () => {
+    const metadata = parseMarkdownMetadata("---\ntitle: Notes\ncount: 3\n---\nbody");
+    expect(metadata.frontmatter.title).toBe("Notes");
+    expect(metadata.frontmatter.count).toBe(3);
+  });
 });

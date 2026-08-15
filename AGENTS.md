@@ -109,7 +109,7 @@ When asked to create commits in this repository:
 - `--yaml`/`yaml` accepts inline YAML text only; file paths must use `--base`/`basePath`.
 - `random()` is deliberately not implemented (deterministic-output engine); divergence from the Obsidian function list tracked in #24.
 - Non-standard extension globals beyond the Obsidian function surface: `sum(values)`, `avg(values)`, `count(values)`, `contains(container, needle)`. Docs example `values.mean()` is not yet supported; tracked in #7.
-- Frontmatter date-typed properties currently remain strings (no YAML timestamp coercion); tracked in #4.
+- Frontmatter date properties are coerced to `Date` at index time when they match `YYYY-MM-DD` or `YYYY-MM-DD[T ]HH:mm(:ss(.SSS)?)(offset)?`. Invalid date-like strings and `YYYY-MM` month-granularity values remain strings.
 
 ## Improvement Plan (tracked in GitHub issues)
 
