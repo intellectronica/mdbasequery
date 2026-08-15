@@ -1,13 +1,6 @@
 import type { ExpressionNode } from "./ast.js";
 
-type TokenType =
-  | "number"
-  | "string"
-  | "identifier"
-  | "regex"
-  | "operator"
-  | "punct"
-  | "eof";
+type TokenType = "number" | "string" | "identifier" | "regex" | "operator" | "punct" | "eof";
 
 interface Token {
   type: TokenType;
@@ -64,12 +57,7 @@ export class ExpressionSyntaxError extends Error {
   }
 }
 
-export function formatExpressionError(
-  message: string,
-  source: string,
-  role: string,
-  index?: number,
-): string {
+export function formatExpressionError(message: string, source: string, role: string, index?: number): string {
   if (index !== undefined && index >= 0 && index <= source.length) {
     const pointer = " ".repeat(index) + "^";
     return `error in ${role}:\n  ${source}\n  ${pointer}\n${message}`;
@@ -94,10 +82,7 @@ class Parser {
     const expression = this.parseExpression(0);
 
     if (this.current.type !== "eof") {
-      throw new ExpressionSyntaxError(
-        `unexpected token ${JSON.stringify(this.current.value)}`,
-        this.current.start,
-      );
+      throw new ExpressionSyntaxError(`unexpected token ${JSON.stringify(this.current.value)}`, this.current.start);
     }
 
     return expression;
@@ -332,10 +317,7 @@ class Parser {
       return expression;
     }
 
-    throw new ExpressionSyntaxError(
-      `unexpected token ${JSON.stringify(this.current.value)}`,
-      this.current.start,
-    );
+    throw new ExpressionSyntaxError(`unexpected token ${JSON.stringify(this.current.value)}`, this.current.start);
   }
 
   private expect(type: TokenType): Token {
@@ -397,7 +379,7 @@ class Parser {
 
     const char = this.input[this.offset];
 
-    if (char === "\"" || char === "'") {
+    if (char === '"' || char === "'") {
       this.offset += 1;
       let value = "";
 
@@ -439,7 +421,7 @@ class Parser {
             case "'":
               value += "'";
               continue;
-            case "u":
+            case "u": {
               if (this.input[this.offset] === "{") {
                 const closeBrace = this.input.indexOf("}", this.offset);
 
@@ -467,6 +449,7 @@ class Parser {
               value += String.fromCodePoint(Number.parseInt(hex, 16));
               this.offset += 4;
               continue;
+            }
             case "x": {
               const hex = this.input.slice(this.offset, this.offset + 2);
 

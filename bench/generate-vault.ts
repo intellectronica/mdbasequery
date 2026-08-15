@@ -64,7 +64,9 @@ export function generateVault(options: GenerateVaultOptions): void {
     lines.push("");
     lines.push(`# Note ${id}`);
     lines.push("");
-    lines.push(`This is note content with a link to [[Note ${linkedId}]] and inline tag #${tags[0] ?? "project/core"}.`);
+    lines.push(
+      `This is note content with a link to [[Note ${linkedId}]] and inline tag #${tags[0] ?? "project/core"}.`,
+    );
     lines.push("Lorem ipsum dolor sit amet, consectetur adipiscing elit. ".repeat(Math.floor(rand() * 5) + 1));
 
     const filename = `note_${id}.md`;

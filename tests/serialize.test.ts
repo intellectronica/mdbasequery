@@ -46,14 +46,14 @@ const fixtureResult: QueryResult = {
 describe("serializers", () => {
   test("json output shape", () => {
     const output = serializeResult(fixtureResult, "json");
-    expect(output).toContain("\"rows\"");
+    expect(output).toContain('"rows"');
     expect(output).toContain("Alpha");
   });
 
   test("jsonl one row per line", () => {
     const output = serializeResult(fixtureResult, "jsonl").trim();
     expect(output.split("\n")).toHaveLength(1);
-    expect(output).toContain("\"title\":\"Alpha\"");
+    expect(output).toContain('"title":"Alpha"');
   });
 
   test("yaml serialization", () => {

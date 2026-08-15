@@ -1,19 +1,19 @@
+import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-
-import { describe, expect, test } from "bun:test";
-
-import { parseBaseYaml } from "../src/query.js";
 import { QueryValidationError } from "../src/core/schema.js";
+import { parseBaseYaml } from "../src/query.js";
 import { fixturesRoot } from "./helpers.js";
 
 describe("schema parser", () => {
   test("parses valid minimal base", () => {
-    const spec = parseBaseYaml(`
+    const spec = parseBaseYaml(
+      `
 views:
   - type: table
     name: default
-`.trim());
+`.trim(),
+    );
 
     expect(spec.views).toHaveLength(1);
     expect(spec.views[0].name).toBe("default");
@@ -32,12 +32,14 @@ views:
     let error: unknown;
 
     try {
-      parseBaseYaml(`
+      parseBaseYaml(
+        `
 views:
   - type: table
     name: default
     order: invalid
-`.trim());
+`.trim(),
+      );
     } catch (caught) {
       error = caught;
     }
@@ -48,7 +50,8 @@ views:
   });
 
   test("supports filter not-list and sort/group object forms", () => {
-    const spec = parseBaseYaml(`
+    const spec = parseBaseYaml(
+      `
 filters:
   not:
     - file.hasTag("archive")
@@ -62,7 +65,8 @@ views:
     sort:
       - property: file.name
         direction: ASC
-`.trim());
+`.trim(),
+    );
 
     expect(spec.filters).toBeDefined();
     expect(spec.views[0].groupBy).toEqual({ property: "file.folder", direction: "desc" });
@@ -70,7 +74,8 @@ views:
   });
 
   test("accepts Obsidian properties object and keeps property keys and propertyConfigs", () => {
-    const spec = parseBaseYaml(`
+    const spec = parseBaseYaml(
+      `
 properties:
   Type:
     displayName: Item Type
@@ -79,7 +84,8 @@ properties:
 views:
   - type: table
     name: default
-`.trim());
+`.trim(),
+    );
 
     expect(spec.properties).toEqual(["Type", "Date"]);
     expect(spec.propertyConfigs).toEqual({
@@ -89,13 +95,15 @@ views:
   });
 
   test("emits warnings on unknown top-level keys and unknown view types", () => {
-    const spec = parseBaseYaml(`
+    const spec = parseBaseYaml(
+      `
 formuals:
   bad: score * 2
 views:
   - type: custom_gallery
     name: default
-`.trim());
+`.trim(),
+    );
 
     expect(spec.warnings).toBeDefined();
     expect(spec.warnings).toContain('unknown top-level key "formuals" in query');
@@ -104,23 +112,27 @@ views:
 
   test("rejects non-string formula and summary expressions", () => {
     expect(() =>
-      parseBaseYaml(`
+      parseBaseYaml(
+        `
 formulas:
   score: 42
 views:
   - type: table
     name: default
-`.trim()),
+`.trim(),
+      ),
     ).toThrow(/formulas\.score must be a string expression/);
 
     expect(() =>
-      parseBaseYaml(`
+      parseBaseYaml(
+        `
 summaries:
   avg: 123
 views:
   - type: table
     name: default
-`.trim()),
+`.trim(),
+      ),
     ).toThrow(/summaries\.avg must be a string expression/);
   });
 });

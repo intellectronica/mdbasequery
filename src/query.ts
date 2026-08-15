@@ -1,26 +1,11 @@
-import { executeCompiledQuery, compileQuery as compileQueryInternal } from "./core/query-engine.js";
+import type { CompiledQuery, CompileQueryOptions, ExecuteQueryOptions } from "./core/query-engine.js";
+import { compileQuery as compileQueryInternal, executeCompiledQuery } from "./core/query-engine.js";
 import { parseBaseYaml } from "./core/schema.js";
 import { indexVault } from "./core/vault-index.js";
 import { detectRuntimeAdapter } from "./runtime-adapters/index.js";
+import type { FileRecord, IndexedDocument, QueryBaseOptions, QueryResult, QuerySpec, RuntimeAdapter } from "./types.js";
 
-import type {
-  CompiledQuery,
-  CompileQueryOptions,
-  ExecuteQueryOptions,
-} from "./core/query-engine.js";
-import type {
-  FileRecord,
-  IndexedDocument,
-  QueryBaseOptions,
-  QueryResult,
-  QuerySpec,
-  RuntimeAdapter,
-} from "./types.js";
-
-async function loadSpec(
-  options: QueryBaseOptions,
-  adapter: RuntimeAdapter,
-): Promise<QuerySpec> {
+async function loadSpec(options: QueryBaseOptions, adapter: RuntimeAdapter): Promise<QuerySpec> {
   if (options.spec) {
     return options.spec;
   }

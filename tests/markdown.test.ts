@@ -118,9 +118,7 @@ describe("markdown metadata parsing", () => {
   });
 
   test("does not harvest tags from frontmatter values outside the tags key", () => {
-    const metadata = parseMarkdownMetadata(
-      "---\ntitle: A #hash-literal\ndesc: '#quoted too'\n---\nbody #real",
-    );
+    const metadata = parseMarkdownMetadata("---\ntitle: A #hash-literal\ndesc: '#quoted too'\n---\nbody #real");
     expect(metadata.tags).toEqual(["real"]);
   });
 

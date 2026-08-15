@@ -1,9 +1,8 @@
-import { mkdtempSync, readFileSync } from "node:fs";
-import { spawnSync } from "node:child_process";
-import { resolve } from "node:path";
-import { tmpdir } from "node:os";
-
 import { describe, expect, test } from "bun:test";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { resolve } from "node:path";
 
 import { fixturesRoot, repoRoot } from "./helpers.js";
 

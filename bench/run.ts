@@ -1,8 +1,7 @@
 import { existsSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
-
-import { generateVault } from "./generate-vault.js";
 import { queryBase } from "../src/query.js";
+import { generateVault } from "./generate-vault.js";
 
 async function timeQuery(name: string, fn: () => Promise<unknown>): Promise<number> {
   const start = performance.now();

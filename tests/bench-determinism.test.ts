@@ -1,7 +1,6 @@
+import { afterAll, describe, expect, test } from "bun:test";
 import { readdirSync, readFileSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
-
-import { afterAll, describe, expect, test } from "bun:test";
 
 import { generateVault } from "../bench/generate-vault.js";
 

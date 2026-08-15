@@ -1,10 +1,8 @@
+import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-
-import { describe, expect, test } from "bun:test";
-
-import { parseBaseYaml } from "../src/core/schema.js";
 import { compileQuery, executeCompiledQuery } from "../src/core/query-engine.js";
+import { parseBaseYaml } from "../src/core/schema.js";
 import { serializeResult } from "../src/core/serialize.js";
 import { indexVault } from "../src/core/vault-index.js";
 import { nodeAdapter } from "../src/runtime-adapters/node.js";
@@ -137,20 +135,22 @@ describe("query engine", () => {
       result.rows.map((row) => [row.projected.title, row.projected["formula.band"]]),
     );
 
-    expect(bandByTitle["Alpha"]).toBe("high");
-    expect(bandByTitle["Gamma"]).toBe("high");
-    expect(bandByTitle["Beta"]).toBe("low");
+    expect(bandByTitle.Alpha).toBe("high");
+    expect(bandByTitle.Gamma).toBe("high");
+    expect(bandByTitle.Beta).toBe("low");
   });
 
   test("uses view order as projection columns", async () => {
-    const spec = parseBaseYaml(`
+    const spec = parseBaseYaml(
+      `
 views:
   - type: table
     name: ordered-columns
     order:
       - title
       - status
-`.trim());
+`.trim(),
+    );
 
     const compiled = compileQuery(spec);
     const indexed = await indexVault({
@@ -172,11 +172,13 @@ views:
   });
 
   test("infers note property columns when no order or select is declared", async () => {
-    const spec = parseBaseYaml(`
+    const spec = parseBaseYaml(
+      `
 views:
   - type: table
     name: inferred
-`.trim());
+`.trim(),
+    );
 
     const compiled = compileQuery(spec);
     const indexed = await indexVault({
@@ -200,20 +202,23 @@ views:
   test("detects formula cycles", () => {
     expect(() =>
       compileQuery(
-        parseBaseYaml(`
+        parseBaseYaml(
+          `
 formulas:
   a: formula.b + 1
   b: formula.a + 1
 views:
   - type: table
     name: default
-`.trim()),
+`.trim(),
+        ),
       ),
     ).toThrow();
   });
 
   test("sort, group and limit behavior is deterministic", async () => {
-    const spec = parseBaseYaml(`
+    const spec = parseBaseYaml(
+      `
 views:
   - type: table
     name: ordered
@@ -226,7 +231,8 @@ views:
       - title:asc
     groupBy: status
     limit: 2
-`.trim());
+`.trim(),
+    );
 
     const compiled = compileQuery(spec);
     const indexed = await indexVault({
@@ -249,7 +255,8 @@ views:
   });
 
   test("supports file.folder in filters and projections", async () => {
-    const spec = parseBaseYaml(`
+    const spec = parseBaseYaml(
+      `
 filters: file.folder == "nested"
 views:
   - type: table
@@ -257,7 +264,8 @@ views:
     properties:
       - file.name
       - file.folder
-`.trim());
+`.trim(),
+    );
 
     const compiled = compileQuery(spec);
     const indexed = await indexVault({
@@ -280,12 +288,14 @@ views:
   });
 
   test("strict mode rejects identifiers that exist nowhere in the vault", async () => {
-    const spec = parseBaseYaml(`
+    const spec = parseBaseYaml(
+      `
 filters: scoree >= 7
 views:
   - type: table
     name: default
-`.trim());
+`.trim(),
+    );
 
     const compiled = compileQuery(spec);
     const indexed = await indexVault({
@@ -305,12 +315,14 @@ views:
   });
 
   test("strict mode rejects undeclared formula references", async () => {
-    const spec = parseBaseYaml(`
+    const spec = parseBaseYaml(
+      `
 views:
   - type: table
     name: default
     filters: formula.missing > 3
-`.trim());
+`.trim(),
+    );
 
     const compiled = compileQuery(spec);
     const indexed = await indexVault({
@@ -330,14 +342,16 @@ views:
   });
 
   test("strict mode rejects unknown projection columns", async () => {
-    const spec = parseBaseYaml(`
+    const spec = parseBaseYaml(
+      `
 views:
   - type: table
     name: default
     properties:
       - title
       - does_not_exist_anywhere
-`.trim());
+`.trim(),
+    );
 
     const compiled = compileQuery(spec);
     const indexed = await indexVault({
@@ -357,21 +371,20 @@ views:
   });
 
   test("strict mode tolerates keys missing from some notes (heterogeneous vaults)", async () => {
-    const spec = parseBaseYaml(`
+    const spec = parseBaseYaml(
+      `
 filters: if(due, true, false)
 views:
   - type: table
     name: default
-`.trim());
+`.trim(),
+    );
 
     const compiled = compileQuery(spec);
 
     const result = executeCompiledQuery({
       compiled,
-      documents: [
-        makeDocument("a.md", { title: "A" }),
-        makeDocument("b.md", { title: "B", due: "2025-01-01" }),
-      ],
+      documents: [makeDocument("a.md", { title: "A" }), makeDocument("b.md", { title: "B", due: "2025-01-01" })],
       view: "default",
     });
 
@@ -381,12 +394,14 @@ views:
   });
 
   test("non-strict mode stays fully permissive", async () => {
-    const spec = parseBaseYaml(`
+    const spec = parseBaseYaml(
+      `
 filters: scoree >= 7
 views:
   - type: table
     name: default
-`.trim());
+`.trim(),
+    );
 
     const compiled = compileQuery(spec, { strict: false });
     const indexed = await indexVault({
@@ -406,7 +421,8 @@ views:
   });
 
   test("custom summary formula uses values.mean() per official docs", async () => {
-    const spec = parseBaseYaml(`
+    const spec = parseBaseYaml(
+      `
 summaries:
   customAverage: 'values.mean().round(3)'
 views:
@@ -417,7 +433,8 @@ views:
       - score
     summaries:
       score: customAverage
-`.trim());
+`.trim(),
+    );
 
     const compiled = compileQuery(spec);
     const indexed = await indexVault({
@@ -437,14 +454,16 @@ views:
   });
 
   test("this is a file-like object, stable across rows", async () => {
-    const spec = parseBaseYaml(`
+    const spec = parseBaseYaml(
+      `
 filters: this.file.ext == ".base"
 views:
   - type: table
     name: default
     properties:
       - file.name
-`.trim());
+`.trim(),
+    );
 
     const compiled = compileQuery(spec);
     const indexed = await indexVault({
@@ -481,14 +500,16 @@ views:
   });
 
   test("file.hasLink(this.file) works when a note links to the base file", async () => {
-    const spec = parseBaseYaml(`
+    const spec = parseBaseYaml(
+      `
 filters: file.hasLink(this.file)
 views:
   - type: table
     name: default
     properties:
       - file.name
-`.trim());
+`.trim(),
+    );
 
     const compiled = compileQuery(spec);
     const indexed = await indexVault({
@@ -524,7 +545,8 @@ views:
   });
 
   test("frontmatter date properties are Dates: comparable and formatable", async () => {
-    const spec = parseBaseYaml(`
+    const spec = parseBaseYaml(
+      `
 filters: created < date("2024-02-01")
 views:
   - type: table
@@ -532,7 +554,8 @@ views:
     properties:
       - title
       - created
-`.trim());
+`.trim(),
+    );
 
     const compiled = compileQuery(spec);
     const indexed = await indexVault({
@@ -554,12 +577,14 @@ views:
   });
 
   test("strict mode allows lambda-scoped value/index/acc in list methods", async () => {
-    const spec = parseBaseYaml(`
+    const spec = parseBaseYaml(
+      `
 filters: tags.filter(value == "urgent").length > 0
 views:
   - type: table
     name: default
-`.trim());
+`.trim(),
+    );
 
     const compiled = compileQuery(spec);
 
@@ -688,9 +713,7 @@ views:
   });
 
   test("uses properties.displayName for CSV/MD headers and columnLabels", () => {
-    const documents = [
-      makeDocument("a.md", { title: "Alpha", status: "open" }),
-    ];
+    const documents = [makeDocument("a.md", { title: "Alpha", status: "open" })];
 
     const specText = `
 properties:
@@ -744,15 +767,17 @@ views:
   });
 
   test("expression errors include role, source text, and caret position", () => {
-    const spec = parseBaseYaml(`
+    const spec = parseBaseYaml(
+      `
 formulas:
   broken: 1 + * 2
 views:
   - type: table
     name: default
-`.trim());
+`.trim(),
+    );
 
-    expect(() => compileQuery(spec)).toThrow(/error in formula "broken":\n  1 \+ \* 2\n {6}\^/);
+    expect(() => compileQuery(spec)).toThrow(/error in formula "broken":\n {2}1 \+ \* 2\n {6}\^/);
   });
 
   test("frontmatter wikilinks compare equal to link objects and serialize cleanly", () => {

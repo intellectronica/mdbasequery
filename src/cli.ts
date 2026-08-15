@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 
 import { readFileSync } from "node:fs";
-
-import { queryBase } from "./query.js";
 import { serializeResult } from "./core/serialize.js";
+import { queryBase } from "./query.js";
 import { detectRuntimeAdapter } from "./runtime-adapters/index.js";
 
 import type { FilterSpec, OutputFormat, QuerySpec, SortSpec } from "./types.js";

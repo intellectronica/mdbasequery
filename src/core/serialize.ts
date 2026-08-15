@@ -56,17 +56,16 @@ function getColumnHeader(column: string, result: QueryResult): string {
 function serializeCsv(result: QueryResult): string {
   if (result.groups && result.groups.length > 0) {
     const columns = ["group", ...result.columns];
-    const lines: string[] = [columns.map((col) => escapeCsv(col === "group" ? "group" : getColumnHeader(col, result))).join(",")];
+    const lines: string[] = [
+      columns.map((col) => escapeCsv(col === "group" ? "group" : getColumnHeader(col, result))).join(","),
+    ];
 
     for (const group of result.groups) {
       const groupKeyStr = toDisplayValue(group.key);
 
       for (const row of group.rows) {
         lines.push(
-          [
-            escapeCsv(groupKeyStr),
-            ...result.columns.map((column) => escapeCsv(toDisplayValue(row[column]))),
-          ].join(","),
+          [escapeCsv(groupKeyStr), ...result.columns.map((column) => escapeCsv(toDisplayValue(row[column])))].join(","),
         );
       }
     }
@@ -141,7 +140,9 @@ export function serializeResult(result: QueryResult, format: OutputFormat): stri
   }
 
   if (format === "jsonl") {
-    return `${normalizedRows(result).map((row) => JSON.stringify(row)).join("\n")}\n`;
+    return `${normalizedRows(result)
+      .map((row) => JSON.stringify(row))
+      .join("\n")}\n`;
   }
 
   if (format === "yaml") {

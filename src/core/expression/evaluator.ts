@@ -1,6 +1,5 @@
-import { parseExpression } from "./parser.js";
-
 import type { ExpressionNode } from "./ast.js";
+import { parseExpression } from "./parser.js";
 
 export interface EvaluationContext {
   note?: Record<string, unknown>;
@@ -18,11 +17,7 @@ export interface EvaluateOptions {
   strict: boolean;
 }
 
-type GlobalFunction = (
-  argNodes: ExpressionNode[],
-  context: EvaluationContext,
-  options: EvaluateOptions,
-) => unknown;
+type GlobalFunction = (argNodes: ExpressionNode[], context: EvaluationContext, options: EvaluateOptions) => unknown;
 
 type MethodFunction = (
   target: unknown,
@@ -31,15 +26,7 @@ type MethodFunction = (
   options: EvaluateOptions,
 ) => unknown;
 
-type DurationUnit =
-  | "year"
-  | "month"
-  | "week"
-  | "day"
-  | "hour"
-  | "minute"
-  | "second"
-  | "millisecond";
+type DurationUnit = "year" | "month" | "week" | "day" | "hour" | "minute" | "second" | "millisecond";
 
 interface DurationPart {
   unit: DurationUnit;
@@ -98,10 +85,7 @@ function isIconValue(value: unknown): value is IconValue {
 
 function isFileLike(value: unknown): value is Record<string, unknown> {
   return (
-    isRecord(value) &&
-    typeof value.path === "string" &&
-    typeof value.name === "string" &&
-    typeof value.ext === "string"
+    isRecord(value) && typeof value.path === "string" && typeof value.name === "string" && typeof value.ext === "string"
   );
 }
 
@@ -367,7 +351,8 @@ function mapDurationUnit(unit: string): DurationUnit | undefined {
 
 function parseDuration(value: string): DurationValue {
   const input = value.trim();
-  const pattern = /([+-]?\d+(?:\.\d+)?)\s*(ms|milliseconds?|M|months?|m|minutes?|y|years?|w|weeks?|d|days?|h|hours?|s|seconds?)/g;
+  const pattern =
+    /([+-]?\d+(?:\.\d+)?)\s*(ms|milliseconds?|M|months?|m|minutes?|y|years?|w|weeks?|d|days?|h|hours?|s|seconds?)/g;
   const parts: DurationPart[] = [];
 
   for (const match of input.matchAll(pattern)) {
@@ -734,8 +719,8 @@ const DATE_FORMAT_TOKENS: DateFormatToken[] = [
   ["d", (date) => String(date.getDay())],
   ["HH", (date) => padNumber(date.getHours())],
   ["H", (date) => String(date.getHours())],
-  ["hh", (date) => padNumber((date.getHours() % 12) || 12)],
-  ["h", (date) => String((date.getHours() % 12) || 12)],
+  ["hh", (date) => padNumber(date.getHours() % 12 || 12)],
+  ["h", (date) => String(date.getHours() % 12 || 12)],
   ["mm", (date) => padNumber(date.getMinutes())],
   ["m", (date) => String(date.getMinutes())],
   ["ss", (date) => padNumber(date.getSeconds())],
@@ -825,22 +810,14 @@ function escapeHtml(value: string): string {
     .replaceAll("'", "&#39;");
 }
 
-function evaluateArgNodes(
-  argNodes: ExpressionNode[],
-  context: EvaluationContext,
-  options: EvaluateOptions,
-): unknown[] {
+function evaluateArgNodes(argNodes: ExpressionNode[], context: EvaluationContext, options: EvaluateOptions): unknown[] {
   return argNodes.map((node) => evaluateAst(node, context, options));
 }
 
-function resolveIdentifier(
-  name: string,
-  context: EvaluationContext,
-  options: EvaluateOptions,
-): unknown {
+function resolveIdentifier(name: string, context: EvaluationContext, options: EvaluateOptions): unknown {
   const direct = context as Record<string, unknown>;
 
-  if (Object.prototype.hasOwnProperty.call(direct, name)) {
+  if (Object.hasOwn(direct, name)) {
     return direct[name];
   }
 
@@ -855,11 +832,7 @@ function resolveIdentifier(
   return undefined;
 }
 
-function resolveMember(
-  object: unknown,
-  property: string,
-  options: EvaluateOptions,
-): unknown {
+function resolveMember(object: unknown, property: string, options: EvaluateOptions): unknown {
   if (isNullish(object)) {
     if (options.strict) {
       throw new Error(`cannot access property ${property} on nullish value`);
@@ -977,7 +950,12 @@ function lookupFile(pathLike: string, context: EvaluationContext): Record<string
   }
 
   const normalized = normalizePath(pathLike);
-  const candidates = [normalized, basename(normalized), basenameWithoutExt(normalized), `${basenameWithoutExt(normalized)}.md`];
+  const candidates = [
+    normalized,
+    basename(normalized),
+    basenameWithoutExt(normalized),
+    `${basenameWithoutExt(normalized)}.md`,
+  ];
 
   for (const candidate of candidates) {
     const found = map.get(candidate);
@@ -1014,7 +992,8 @@ function matchesLinkTarget(link: string, target: string): boolean {
   return left === right || basename(left) === basename(right);
 }
 
-const globalFunctions: Record<string, GlobalFunction> = {  escapeHTML(argNodes, context, options): string {
+const globalFunctions: Record<string, GlobalFunction> = {
+  escapeHTML(argNodes, context, options): string {
     const [input] = evaluateArgNodes(argNodes, context, options);
     return escapeHtml(stringifyValue(input));
   },
@@ -1142,7 +1121,7 @@ const globalFunctions: Record<string, GlobalFunction> = {  escapeHTML(argNodes, 
     }
 
     if (isRecord(container)) {
-      return !isNullish(needle) && Object.prototype.hasOwnProperty.call(container, String(needle));
+      return !isNullish(needle) && Object.hasOwn(container, String(needle));
     }
 
     return false;
@@ -1286,14 +1265,15 @@ const stringMethods: Record<string, MethodFunction> = {
   slice(target, argNodes, context, options): string {
     const [start, end] = evaluateArgNodes(argNodes, context, options);
     const source = stringifyValue(target);
-    return source.slice(Math.trunc(toNumber(start, options)), isNullish(end) ? undefined : Math.trunc(toNumber(end, options)));
+    return source.slice(
+      Math.trunc(toNumber(start, options)),
+      isNullish(end) ? undefined : Math.trunc(toNumber(end, options)),
+    );
   },
   split(target, argNodes, context, options): unknown[] {
     const [separator, limit] = evaluateArgNodes(argNodes, context, options);
     const source = stringifyValue(target);
-    const parts = separator instanceof RegExp
-      ? source.split(separator)
-      : source.split(stringifyValue(separator));
+    const parts = separator instanceof RegExp ? source.split(separator) : source.split(stringifyValue(separator));
 
     if (isNullish(limit)) {
       return parts;
@@ -1518,13 +1498,18 @@ const linkMethods: Record<string, MethodFunction> = {
       return false;
     }
 
-    return fileMethods.hasLink(source, [
-      {
-        kind: "literal",
-        value: other,
-        raw: JSON.stringify(stringifyValue(other)),
-      },
-    ], context, options) as boolean;
+    return fileMethods.hasLink(
+      source,
+      [
+        {
+          kind: "literal",
+          value: other,
+          raw: JSON.stringify(stringifyValue(other)),
+        },
+      ],
+      context,
+      options,
+    ) as boolean;
   },
 };
 
@@ -1562,7 +1547,7 @@ const fileMethods: Record<string, MethodFunction> = {
     const [nameRaw] = evaluateArgNodes(argNodes, context, options);
     const name = stringifyValue(nameRaw);
     const props = isRecord(target.properties) ? target.properties : {};
-    return Object.prototype.hasOwnProperty.call(props, name);
+    return Object.hasOwn(props, name);
   },
   hasTag(target, argNodes, context, options): boolean {
     if (!isFileLike(target)) {
@@ -1670,11 +1655,7 @@ function invokeMethod(
   return fn(target, argNodes, context, options);
 }
 
-export function evaluateAst(
-  expression: ExpressionNode,
-  context: EvaluationContext,
-  options: EvaluateOptions,
-): unknown {
+export function evaluateAst(expression: ExpressionNode, context: EvaluationContext, options: EvaluateOptions): unknown {
   if (expression.kind === "literal") {
     return expression.value;
   }
@@ -1793,11 +1774,7 @@ export function evaluateAst(
   throw new Error(`unsupported expression kind: ${(expression as { kind: string }).kind}`);
 }
 
-export function evaluateExpression(
-  source: string,
-  context: EvaluationContext,
-  options: EvaluateOptions,
-): unknown {
+export function evaluateExpression(source: string, context: EvaluationContext, options: EvaluateOptions): unknown {
   const ast = parseExpression(source);
   return evaluateAst(ast, context, options);
 }

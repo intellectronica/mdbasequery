@@ -24,7 +24,7 @@ describe("expression parser", () => {
   });
 
   test("parses function calls", () => {
-    const ast = parseExpression("contains(file.tags, \"project/core\")");
+    const ast = parseExpression('contains(file.tags, "project/core")');
     expect(ast.kind).toBe("call");
   });
 

@@ -1,24 +1,22 @@
-import {
-  ExpressionSyntaxError,
-  GLOBAL_FUNCTION_NAMES,
-  compileExpression,
-  evaluateAst,
-  formatExpressionError,
-} from "./expression/index.js";
-import { buildPathLookupIndexes } from "./vault-index.js";
-
-import type { EvaluationContext, ExpressionNode } from "./expression/index.js";
 import type {
   FileRecord,
   FilterSpec,
   IndexedDocument,
   QueryDiagnostics,
-  QueryGroup,
   QueryResult,
   QueryRow,
   QuerySpec,
   ViewSpec,
 } from "../types.js";
+import type { EvaluationContext, ExpressionNode } from "./expression/index.js";
+import {
+  compileExpression,
+  ExpressionSyntaxError,
+  evaluateAst,
+  formatExpressionError,
+  GLOBAL_FUNCTION_NAMES,
+} from "./expression/index.js";
+import { buildPathLookupIndexes } from "./vault-index.js";
 
 const BUILTIN_SUMMARIES = new Set([
   "count",
@@ -96,7 +94,7 @@ function evaluatePropertyRef(
   filesByPath?: Map<string, unknown>,
   astCache?: Map<string, ExpressionNode>,
 ): unknown {
-  if (!DOTTED_IDENTIFIER_RE.test(property) && Object.prototype.hasOwnProperty.call(row.note, property)) {
+  if (!DOTTED_IDENTIFIER_RE.test(property) && Object.hasOwn(row.note, property)) {
     return row.note[property];
   }
 
@@ -246,8 +244,18 @@ function extractFormulaRefsFromFilter(filter: CompiledFilter | undefined, output
     return;
   }
 
-  filter.and?.forEach((entry) => extractFormulaRefsFromFilter(entry, output));
-  filter.or?.forEach((entry) => extractFormulaRefsFromFilter(entry, output));
+  if (filter.and) {
+    for (const entry of filter.and) {
+      extractFormulaRefsFromFilter(entry, output);
+    }
+  }
+
+  if (filter.or) {
+    for (const entry of filter.or) {
+      extractFormulaRefsFromFilter(entry, output);
+    }
+  }
+
   extractFormulaRefsFromFilter(filter.not, output);
 }
 
@@ -467,12 +475,18 @@ function validateCompiledFilterIdentifiers(
     return;
   }
 
-  filter.and?.forEach((entry, index) =>
-    validateCompiledFilterIdentifiers(entry, known, declaredFormulas, `${source}.and[${index}]`),
-  );
-  filter.or?.forEach((entry, index) =>
-    validateCompiledFilterIdentifiers(entry, known, declaredFormulas, `${source}.or[${index}]`),
-  );
+  if (filter.and) {
+    for (let index = 0; index < filter.and.length; index += 1) {
+      validateCompiledFilterIdentifiers(filter.and[index], known, declaredFormulas, `${source}.and[${index}]`);
+    }
+  }
+
+  if (filter.or) {
+    for (let index = 0; index < filter.or.length; index += 1) {
+      validateCompiledFilterIdentifiers(filter.or[index], known, declaredFormulas, `${source}.or[${index}]`);
+    }
+  }
+
   validateCompiledFilterIdentifiers(filter.not, known, declaredFormulas, `${source}.not`);
 }
 
@@ -528,10 +542,8 @@ function validateStrictQuery(compiled: CompiledQuery, documents: IndexedDocument
     validatePropertyRefIdentifiers(property, known, declaredFormulas, `group key "${property}"`);
   }
 
-  const columns = (view.order && view.order.length > 0 ? view.order : undefined) ??
-    view.properties ??
-    compiled.spec.properties ??
-    [];
+  const columns =
+    (view.order && view.order.length > 0 ? view.order : undefined) ?? view.properties ?? compiled.spec.properties ?? [];
 
   for (const column of columns) {
     validatePropertyRefIdentifiers(column, known, declaredFormulas, `column "${column}"`);
@@ -679,7 +691,9 @@ function inferColumns(rows: QueryRow[], compiled: CompiledQuery): string[] {
     }
   }
 
-  for (const formulaName of Object.keys(compiled.spec.formulas ?? {}).sort((left, right) => left.localeCompare(right))) {
+  for (const formulaName of Object.keys(compiled.spec.formulas ?? {}).sort((left, right) =>
+    left.localeCompare(right),
+  )) {
     const key = `formula.${formulaName}`;
 
     if (seen.has(key)) {
@@ -848,7 +862,8 @@ function computeSummaries(
       continue;
     }
 
-    const summaryExpression = compiled.summaryFormulas.get(summaryName) ??
+    const summaryExpression =
+      compiled.summaryFormulas.get(summaryName) ??
       (spec.summaries?.[summaryName] ? compileExpression(spec.summaries[summaryName]) : undefined);
 
     if (!summaryExpression) {
@@ -930,22 +945,21 @@ export function executeCompiledQuery(options: ExecuteQueryOptions): QueryResult 
     validateStrictQuery(compiled, options.documents, view);
   }
 
-  const thisFile: FileRecord =
-    options.thisFile ?? {
-      name: "",
-      basename: "",
-      path: "",
-      folder: "",
-      ext: "",
-      size: 0,
-      ctime: new Date(0),
-      mtime: new Date(0),
-      properties: {},
-      tags: [],
-      links: [],
-      embeds: [],
-      backlinks: [],
-    };
+  const thisFile: FileRecord = options.thisFile ?? {
+    name: "",
+    basename: "",
+    path: "",
+    folder: "",
+    ext: "",
+    size: 0,
+    ctime: new Date(0),
+    mtime: new Date(0),
+    properties: {},
+    tags: [],
+    links: [],
+    embeds: [],
+    backlinks: [],
+  };
 
   const indexes = buildPathLookupIndexes(options.documents);
 
@@ -1014,9 +1028,7 @@ export function executeCompiledQuery(options: ExecuteQueryOptions): QueryResult 
   const limited = applyLimit(sorted, view);
 
   const columns =
-    (view.order && view.order.length > 0
-      ? view.order
-      : undefined) ??
+    (view.order && view.order.length > 0 ? view.order : undefined) ??
     view.properties ??
     compiled.spec.properties ??
     inferColumns(limited, compiled);

@@ -206,9 +206,7 @@ function stripCodeRegions(raw: string): string {
     }
   }
 
-  const blankedLines = lines
-    .map((line, index) => (blanked[index] ? " ".repeat(line.length) : line))
-    .join("\n");
+  const blankedLines = lines.map((line, index) => (blanked[index] ? " ".repeat(line.length) : line)).join("\n");
 
   return blankInlineCode(blankedLines);
 }

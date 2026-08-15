@@ -1,8 +1,6 @@
 import { minimatch } from "minimatch";
-
-import { parseMarkdownMetadata } from "./markdown.js";
-
 import type { IndexedDocument, RuntimeAdapter, RuntimeFileEntry } from "../types.js";
+import { parseMarkdownMetadata } from "./markdown.js";
 
 export interface VaultIndexOptions {
   rootDir: string;
@@ -103,10 +101,7 @@ export function buildPathLookupIndexes(documents: IndexedDocument[]): PathLookup
   return { byPath, byShortName };
 }
 
-export function resolveLinkTarget(
-  link: string,
-  indexes: PathLookupIndexes,
-): IndexedDocument | undefined {
+export function resolveLinkTarget(link: string, indexes: PathLookupIndexes): IndexedDocument | undefined {
   const normalized = normalizeLinkTarget(link);
 
   return (

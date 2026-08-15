@@ -1,9 +1,7 @@
-import { resolve } from "node:path";
-
 import { describe, expect, test } from "bun:test";
-
-import { nodeAdapter } from "../src/runtime-adapters/node.js";
+import { resolve } from "node:path";
 import { indexVault } from "../src/core/vault-index.js";
+import { nodeAdapter } from "../src/runtime-adapters/node.js";
 import { fixturesRoot } from "./helpers.js";
 
 describe("vault indexing", () => {

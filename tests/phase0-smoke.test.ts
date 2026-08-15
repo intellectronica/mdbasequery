@@ -1,7 +1,6 @@
+import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
-
-import { describe, expect, test } from "bun:test";
 
 import { queryBase, serializeResult } from "../src/index.js";
 import { fixturesRoot, repoRoot } from "./helpers.js";

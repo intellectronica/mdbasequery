@@ -92,11 +92,7 @@ function normalizeDirection(value: unknown): SortDirection {
   return String(value ?? "asc").toLowerCase() === "desc" ? "desc" : "asc";
 }
 
-function normalizeSortList(
-  value: unknown,
-  path: string,
-  issues: string[],
-): SortSpec[] | undefined {
+function normalizeSortList(value: unknown, path: string, issues: string[]): SortSpec[] | undefined {
   if (value === undefined) {
     return undefined;
   }
@@ -168,11 +164,7 @@ function normalizeOrderList(value: unknown, path: string, issues: string[]): str
   return output;
 }
 
-function normalizeGroupBy(
-  value: unknown,
-  path: string,
-  issues: string[],
-): string | GroupBySpec | undefined {
+function normalizeGroupBy(value: unknown, path: string, issues: string[]): string | GroupBySpec | undefined {
   if (value === undefined) {
     return undefined;
   }
@@ -195,12 +187,7 @@ function normalizeGroupBy(
 const KNOWN_TOP_LEVEL_KEYS = new Set(["filters", "formulas", "properties", "summaries", "views"]);
 const STANDARD_VIEW_TYPES = new Set(["table", "cards", "list", "map"]);
 
-function normalizeView(
-  value: unknown,
-  index: number,
-  issues: string[],
-  warnings: string[],
-): ViewSpec | undefined {
+function normalizeView(value: unknown, index: number, issues: string[], warnings: string[]): ViewSpec | undefined {
   const path = `views[${index}]`;
 
   if (!isPlainObject(value)) {

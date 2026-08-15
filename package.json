@@ -28,7 +28,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
-    "lint-typecheck": "tsc --noEmit",
+    "lint": "biome check src tests bench test-runtime",
+    "lint-typecheck": "biome check src tests bench test-runtime && tsc --noEmit",
     "test": "bun test tests",
     "test:bun": "bun test tests",
     "test:node": "bun run build && node --test test-runtime/node-conformance.test.mjs",
@@ -43,6 +44,7 @@
     "yaml": "^2.8.1"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.8",
     "@types/node": "^22.14.0",
     "typescript": "^5.9.3"
   }

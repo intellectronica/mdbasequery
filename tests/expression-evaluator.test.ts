@@ -29,12 +29,8 @@ describe("expression evaluator", () => {
   });
 
   test("supports string and number methods", () => {
-    expect(evaluateExpression("title.lower()", { title: "Hello WORLD" }, { strict: true })).toBe(
-      "hello world",
-    );
-    expect(evaluateExpression("title.title()", { title: "hello world" }, { strict: true })).toBe(
-      "Hello World",
-    );
+    expect(evaluateExpression("title.lower()", { title: "Hello WORLD" }, { strict: true })).toBe("hello world");
+    expect(evaluateExpression("title.title()", { title: "hello world" }, { strict: true })).toBe("Hello World");
     expect(evaluateExpression("'a,b,c'.split(',').length", {}, { strict: true })).toBe(3);
     expect(evaluateExpression("(-2.1).abs()", {}, { strict: true })).toBe(2.1);
     expect(evaluateExpression("(2.345).round(2)", {}, { strict: true })).toBe(2.35);
