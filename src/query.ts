@@ -84,7 +84,7 @@ function resolveThisFile(options: QueryBaseOptions, adapter: RuntimeAdapter, dir
   const folder = slashIndex === -1 ? "" : relativePath.slice(0, slashIndex);
   const dotIndex = name.lastIndexOf(".");
   const basename = dotIndex === -1 ? name : name.slice(0, dotIndex);
-  const ext = dotIndex === -1 ? "" : name.slice(dotIndex);
+  const ext = dotIndex === -1 ? "" : name.slice(dotIndex + 1);
 
   return {
     name,

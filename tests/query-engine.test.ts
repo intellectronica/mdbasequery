@@ -19,7 +19,7 @@ describe("query engine", () => {
         basename: (path.split("/").pop() ?? path).replace(/\.md$/, ""),
         path,
         folder: path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "",
-        ext: ".md",
+        ext: "md",
         size: 1,
         ctime: new Date(0),
         mtime: new Date(0),
@@ -287,6 +287,37 @@ views:
     expect(result.diagnostics.errors).toHaveLength(0);
   });
 
+  test("file.ext is the extension without a leading dot, as in Obsidian", async () => {
+    const spec = parseBaseYaml(
+      `
+filters: file.ext == "md"
+views:
+  - type: table
+    name: exts
+    properties:
+      - file.name
+      - file.ext
+`.trim(),
+    );
+
+    const compiled = compileQuery(spec);
+    const indexed = await indexVault({
+      rootDir: vaultDir,
+      include: ["**/*.md"],
+      exclude: [],
+      adapter: nodeAdapter,
+    });
+
+    const result = executeCompiledQuery({
+      compiled,
+      documents: indexed.documents,
+      view: "exts",
+    });
+
+    expect(result.rows).toHaveLength(indexed.documents.length);
+    expect(result.rows[0].projected["file.ext"]).toBe("md");
+  });
+
   test("strict mode rejects identifiers that exist nowhere in the vault", async () => {
     const spec = parseBaseYaml(
       `
@@ -456,7 +487,7 @@ views:
   test("this is a file-like object, stable across rows", async () => {
     const spec = parseBaseYaml(
       `
-filters: this.file.ext == ".base"
+filters: this.file.ext == "base"
 views:
   - type: table
     name: default
@@ -482,7 +513,7 @@ views:
         basename: "base",
         path: "queries/base.base",
         folder: "queries",
-        ext: ".base",
+        ext: "base",
         size: 0,
         ctime: new Date(0),
         mtime: new Date(0),
@@ -528,7 +559,7 @@ views:
         basename: "beta",
         path: "beta.md",
         folder: "",
-        ext: ".md",
+        ext: "md",
         size: 0,
         ctime: new Date(0),
         mtime: new Date(0),

@@ -923,7 +923,7 @@ function createSyntheticFile(pathLike: string): Record<string, unknown> {
   const folderIndex = path.lastIndexOf("/");
   const folder = folderIndex === -1 ? "" : path.slice(0, folderIndex);
   const dotIndex = name.lastIndexOf(".");
-  const ext = dotIndex === -1 ? "" : name.slice(dotIndex);
+  const ext = dotIndex === -1 ? "" : name.slice(dotIndex + 1);
 
   return {
     name,

@@ -94,6 +94,7 @@ When implementation decisions affect compatibility, runtime behaviour, performan
 
 - `this` is a file-like record. With `--base`/`basePath` it is a synthetic record of the base file itself (path/folder resolved relative to the vault root; no file read); in `--yaml`/flag/library mode without a base path it is an empty record at the vault root. This diverges from Obsidian embed-location semantics but supports the documented patterns (`this.file.folder`, `file.hasLink(this.file)`, `author == this`).
 - `file.folder` is supported and resolves to the vault-relative parent directory (`""` for root-level notes).
+- `file.ext` is the extension without a leading dot (`"md"`, `"base"`), matching Obsidian, so `file.ext == "md"` works. Applies to indexed notes, `this.file`, and link-derived file records. Runtime adapters' `extname` still returns the dotted form; the dot is stripped in core.
 - `file.backlinks` is computed during indexing from resolved `file.links` targets using unambiguous basename / exact path matching.
 - `random()` is deliberately not implemented for deterministic query evaluation.
 - Non-standard extension globals beyond the Obsidian function surface: `sum(values)`, `avg(values)`, `count(values)`, `contains(container, needle)`. List stat methods `values.mean()`, `values.sum()`, `values.min()`, `values.max()` are supported per official docs.

@@ -149,7 +149,7 @@ views:
             basename: "a",
             path: "a.md",
             folder: "",
-            ext: ".md",
+            ext: "md",
             size: 1,
             ctime: new Date(0),
             mtime: new Date(0),

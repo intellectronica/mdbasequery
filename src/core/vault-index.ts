@@ -170,7 +170,7 @@ export async function indexVault(options: VaultIndexOptions): Promise<VaultIndex
         basename: basenameFromPath(relativePath),
         path: relativePath,
         folder: folderFromPath(relativePath),
-        ext: options.adapter.extname(relativePath),
+        ext: options.adapter.extname(relativePath).replace(/^\./, ""),
         size: entry.stat.size,
         ctime: entry.stat.ctime,
         mtime: entry.stat.mtime,
